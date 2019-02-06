@@ -214,7 +214,7 @@ public class Robot extends TimedRobot {
 			 * This function is called periodically while disabled
 			 */
 			public void disabledPeriodic() {
-				// TODO idling lights here
+				// TODO idling LEDs here
 			}
 			
 			/**
@@ -233,11 +233,9 @@ public class Robot extends TimedRobot {
 			 */
 			@Override
 			public void autonomousPeriodic() {
-				
 				SmartDashboard.putNumber("Gyro", ahrs.getYaw());
 				SmartDashboard.putNumber("CIMCODER",encoderDistance.get());
-				
-				}
+			}
 			
 			/**
 			 * This function is called when teleop begins
@@ -445,7 +443,7 @@ public class Robot extends TimedRobot {
 
                   if (limelightPhase == 1) {
                     //swerve(0,sign * Math.max(Math.abs(limelightX),CONTROL_CAM_CORRECTBOTTOM),0,false);*/
-                    // Omitted for now
+										// Omitted for now
 
                     limelightPhase = 2;
                     limelightInputTimer = 50;
@@ -552,19 +550,27 @@ public class Robot extends TimedRobot {
             camMode.setNumber(1);	// set cam to driver view
           }
         }
-        // END OF LIMELIGHT SEEKING CODE
-        
+				// END OF LIMELIGHT SEEKING CODE
+				
+				// End DRIVER CONTROL
         // Begin OPERATOR DRIVING
 
         if (INTERFACE_SINGLEDRIVER == false || (INTERFACE_SINGLEDRIVER == true && singleDriverController == 1)) {
-          if (INTERFACE_SINGLEDRIVER == false) controlWorking = controlOperator; else controlWorking = controlDriver;
+					if (INTERFACE_SINGLEDRIVER == false) controlWorking = controlOperator; else controlWorking = controlDriver;
+
+					// Run the lift
           if (Math.abs(controlWorking.getRawAxis(1)) >= CONTROL_LIFT_DEADZONE) {
             motorLift.set(ControlMode.PercentOutput,-controlWorking.getRawAxis(1));
-          } else motorLift.set(ControlMode.PercentOutput,0);
+					} else motorLift.set(ControlMode.PercentOutput,0);
+
+					// Run the climber
           if (Math.abs(controlWorking.getRawAxis(5)) >= CONTROL_CLIMB_DEADZONE / 10) {
             //motorClimb.set(ControlMode.PercentOutput,controlWorking.getRawAxis(5));
           }
         }
+
+				// End OPERATOR DRIVING
+				// Begin UNIVERSAL FUNCTIONS
 
         // Toggle drive mode if single driver interface is active
 
@@ -572,8 +578,10 @@ public class Robot extends TimedRobot {
           if (singleDriverController == 0) singleDriverController = 1; else singleDriverController = 0;
         }
         
-        // TODO full dashboard dump should go here unless not applicable to robot function
-        SmartDashboard.putNumber("ControllerID",singleDriverController);
+        // TODO full dashboard dump should go here (unless functions in question are Limelight positioning values)
+				SmartDashboard.putNumber("ControllerID",singleDriverController);
+				
+				// End UNIVERSAL FUNCTIONS
 			}
 
 			/**
@@ -611,32 +619,14 @@ public class Robot extends TimedRobot {
 				if (controlDriver.getRawButton(3)) wheelTune = 2;
 				if (controlDriver.getRawButton(4)) wheelTune = 3;
 				
-				switch (wheelTune) {
-				case 0:
-					if (controlDriver.getRawButton(5)) motorAngle[0].set(0.3);
-          else if (controlDriver.getRawButton(6)) motorAngle[0].set(-0.3); else motorAngle[0].set(0);
-					break;
-				case 1:
-					if (controlDriver.getRawButton(5)) motorAngle[1].set(0.3);
-					else if (controlDriver.getRawButton(6)) motorAngle[1].set(-0.3); else motorAngle[1].set(0);
-					break;
-				case 2:
-					if (controlDriver.getRawButton(5)) motorAngle[2].set(0.3);
-					else if (controlDriver.getRawButton(6)) motorAngle[2].set(-0.3); else motorAngle[2].set(0);
-					break;
-				case 3:
-					if (controlDriver.getRawButton(5)) motorAngle[3].set(0.3);
-					else if (controlDriver.getRawButton(6)) motorAngle[3].set(-0.3); else motorAngle[3].set(0);
-					break;
-        }
-        
+				// Adjust wheel angle
+				if (controlDriver.getRawButton(5)) motorAngle[wheelTune].set(0.3);
+				else if (controlDriver.getRawButton(6)) motorAngle[wheelTune].set(-0.3); else motorAngle[wheelTune].set(0);
+				
+				// Spin wheels
         if (controlDriver.getRawAxis(2) > .09) motorDrive[wheelTune].set(controlDriver.getRawAxis(2) / 2);
         else if (controlDriver.getRawAxis(3) > .09) motorDrive[wheelTune].set(-controlDriver.getRawAxis(3) / 2);
         else motorDrive[wheelTune].set(0);
-
-        if (Math.abs(controlDriver.getRawAxis(1)) >= CONTROL_LIFT_DEADZONE) {
-          motorLift.set(ControlMode.PercentOutput,controlDriver.getRawAxis(1) / 3);
-        }
 		}
 
 		/**
@@ -649,6 +639,11 @@ public class Robot extends TimedRobot {
 			}
 		}
 
+		/**
+		 * Sets all drive wheels to a single value. This is good for turning all the motors off.
+		 * 
+		 * @param val is the value to set all the wheels to
+		 */
 		public void setAllWheels(double val) {
 			for (int i=0;i<=3;i++) {
 				motorDrive[i].set(val * wheel[i].getFlip());
