@@ -44,8 +44,6 @@ public class Robot extends TimedRobot {
       //=======================================
 			
 			// OTHER CONSTANTS
-			
-// random comment
 
 			final double ROBOT_WIDTH = 29;
 			final double ROBOT_LENGTH = 29;
@@ -85,27 +83,29 @@ public class Robot extends TimedRobot {
 			boolean limelightActive = true;	// true if the robot is collecting limelight data and tracking targets
 			boolean limelightSeeking = false;	// true if the limelight is currently seeking a target
 			int limelightPhase = 0;	// phase for limelight correction, 0=off 1=angular 2=lateral 3=proceed
+			
 			// LIMELIGHT + DATA TABLES
 
 			NetworkTable limelightTable = NetworkTableInstance.getDefault().getTable("limelight");
-			NetworkTableEntry tx = limelightTable.getEntry("tx");	// the x offset from the crosshairs
-			NetworkTableEntry ty = limelightTable.getEntry("ty");	// the y offset from the crosshairs
-			NetworkTableEntry ta = limelightTable.getEntry("ta");	// the area (0-100) of the object
-			NetworkTableEntry tv = limelightTable.getEntry("tv");	// 1 if object is tracking, 0 if not
-			NetworkTableEntry thoriz = limelightTable.getEntry("thoriz");	// 0-320 width of the box
-			NetworkTableEntry tvert = limelightTable.getEntry("tvert");	// 0-320 height of the box
+			NetworkTableEntry tx = limelightTable.getEntry("tx");										// the x offset from the crosshairs
+			NetworkTableEntry ty = limelightTable.getEntry("ty");										// the y offset from the crosshairs
+			NetworkTableEntry ta = limelightTable.getEntry("ta");										// the area (0-100) of the object
+			NetworkTableEntry tv = limelightTable.getEntry("tv");										// 1 if object is tracking, 0 if not
+			NetworkTableEntry thoriz = limelightTable.getEntry("thoriz");						// 0-320 width of the box
+			NetworkTableEntry tvert = limelightTable.getEntry("tvert");							// 0-320 height of the box
 
-			NetworkTableEntry tshort = limelightTable.getEntry("tshort");	// 0-320 value of shortest side
-			NetworkTableEntry tlong = limelightTable.getEntry("tlong");	// 0-320 value of longest side
+			NetworkTableEntry tshort = limelightTable.getEntry("tshort");						// 0-320 value of shortest side
+			NetworkTableEntry tlong = limelightTable.getEntry("tlong");							// 0-320 value of longest side
 
-			NetworkTableEntry ledMode = limelightTable.getEntry("ledMode");	// 0 for on, 1 for off
-			NetworkTableEntry camMode = limelightTable.getEntry("camMode");	// 0 for main, 1 for driver view
+			NetworkTableEntry ledMode = limelightTable.getEntry("ledMode");					// 0 for on, 1 for off
+			NetworkTableEntry camMode = limelightTable.getEntry("camMode");					// 0 for main, 1 for driver view
 
 			double limelightX, limelightY, limelightArea, limelightWidth, limelightHeight;	// defined in limelightGather
 			double limelightEstAngle, limelightGoalAngle, limelightPIDAngle, limelightInitX, limelightROC;	// all used for auto calculations
 			boolean limelightTargetFound = false;
 			double limelightInputTimer = -1;
 			int limelightGuideMode;
+			//=======================================
 
 			// DEFINING HARDWARE
 
@@ -127,15 +127,15 @@ public class Robot extends TimedRobot {
 			};
       
 			// The one CIMcoder on the bot, measures distance traveled
-			Encoder encoderDistance = new Encoder(8,9);
+			Encoder encoderDistance = new Encoder(8,9);	// TODO wire this up and update the ports
 			
 			// Xbox controllers
-			Joystick controlDriver = new Joystick(0);
-      Joystick controlOperator = new Joystick(1);
-      Joystick controlWorking;  // In the code this is the current joystick we're trying to read
+			Joystick controlDriver = new Joystick(0);			// the joystick responsible for driving
+      Joystick controlOperator = new Joystick(1);		// the joystick responsible for operator controls
+      Joystick controlWorking;  										// the controller currently being read from, usually used just for one-driver control
 			
 			// NavX Constructor
-			AHRS ahrs = new AHRS(SPI.Port.kMXP); //Use this for gyro
+			AHRS ahrs = new AHRS(SPI.Port.kMXP);
 			
 			// All motors
 			Spark motorAngle[] = { // Directional motors
@@ -155,7 +155,8 @@ public class Robot extends TimedRobot {
       // Lift/Climber
       TalonSRX motorLift = new TalonSRX(3);
       TalonSRX motorClimb = new TalonSRX(4);
-      
+			//=======================================
+			
 			// PID LOOPS
 
 			// These control the steering motors using the mers (?? idk what mers is)
@@ -213,7 +214,7 @@ public class Robot extends TimedRobot {
 			 * This function is called periodically while disabled
 			 */
 			public void disabledPeriodic() {
-				
+				// TODO idling lights here
 			}
 			
 			/**
@@ -539,10 +540,8 @@ public class Robot extends TimedRobot {
                       swerve(proportionalLoop(.042,limelightArea,15),-proportionalLoop(.014,limelightX,0),0,false);
                     }
                   }
-                  
                   break;
               }
-
             } else {
               limelightKillSeeking();
             }
@@ -569,7 +568,7 @@ public class Robot extends TimedRobot {
 
         // Toggle drive mode if single driver interface is active
 
-        if (INTERFACE_SINGLEDRIVER == true && controlDriver.getRawButton(BUTTON_START) == true) {
+        if (INTERFACE_SINGLEDRIVER == true && controlDriver.getRawButtonPressed(BUTTON_START) == true) {
           if (singleDriverController == 0) singleDriverController = 1; else singleDriverController = 0;
         }
         
@@ -730,14 +729,5 @@ public class Robot extends TimedRobot {
 			limelightSeeking = false;
 			limelightPhase = 0;
 			limelightInputTimer = -1;
-		}
-		// blah blah
-		/**
-		 * Pew pew
-		 * 
-		 */
-		public void laserCannon() {
-			// pew pew pew
-			// pew pew xx
 		}
   }
