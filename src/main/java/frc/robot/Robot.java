@@ -730,5 +730,13 @@ public class Robot extends TimedRobot {
 			limelightSeeking = false;
 			limelightPhase = 0;
 			limelightInputTimer = -1;
-    }
+		}
+		
+		/**
+		 * Pew pew
+		 * 
+		 */
+		public void laserCannon() {
+			
+		}
   }
