@@ -30,6 +30,8 @@ import edu.wpi.first.networktables.NetworkTableInstance;
 
 public class Robot extends TimedRobot {
 			
+			// asdfghjkl
+
 			// CONTROLLABLE CONSTANTS
 	
 			final double CONTROL_SPEEDREDUCTION = 2; 	  // teleop drivetrain inputs are divided by this number when turbo is NOT engaged
