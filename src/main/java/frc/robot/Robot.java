@@ -91,7 +91,7 @@ public class Robot extends TimedRobot {
 			NetworkTableEntry ty = limelightTable.getEntry("ty");										// the y offset from the crosshairs
 			NetworkTableEntry ta = limelightTable.getEntry("ta");										// the area (0-100) of the object
 			NetworkTableEntry tv = limelightTable.getEntry("tv");										// 1 if object is tracking, 0 if not
-			NetworkTableEntry thoriz = limelightTable.getEntry("thoriz");						// 0-320 width of the box
+			NetworkTableEntry thor = limelightTable.getEntry("thor");						// 0-320 width of the box
 			NetworkTableEntry tvert = limelightTable.getEntry("tvert");							// 0-320 height of the box
 
 			NetworkTableEntry tshort = limelightTable.getEntry("tshort");						// 0-320 value of shortest side
@@ -680,20 +680,17 @@ public class Robot extends TimedRobot {
 			limelightX = tx.getDouble(0.0);
 			limelightY = ty.getDouble(0.0);
 			limelightArea = ta.getDouble(0.0);
-			limelightWidth = thoriz.getDouble(0.0);
-			limelightHeight = tvert.getDouble(0.0);	// not working for some reason
+			limelightWidth = thor.getDouble(0.0);
+			limelightHeight = tvert.getDouble(0.0);
 			double ltv = tv.getDouble(0.0);
 			limelightTargetFound = false;
 			if (ltv != 1.0) limelightTargetFound = false; else limelightTargetFound = true;
-
-			// Find width through a manual way
-			limelightWidth = tlong.getDouble(0.0);
 
 			// Find estimated distance
 			//double mathArea = limelightWidth * limelightHeight;
 			//limelightEstDistance = 0.0256 * Math.pow(mathArea,4) - 0.4883 * Math.pow(mathArea,3) + 3.4146 * Math.pow(mathArea,2) - 10.631 * mathArea + 13.509;
 			double limelightProp = limelightWidth / limelightHeight;
-			limelightEstAngle =  -18.1603 * Math.pow(limelightProp,2) + 19.7507 * limelightProp + 62;
+			limelightEstAngle =  -18.1603 * Math.pow(limelightProp,2) + 19.7507 * limelightProp + 62;	// very guess-work-y and not reliable
 
 			// Write Limelight data table values to the dashboard
 			SmartDashboard.putNumber("LimelightX", limelightX);
@@ -702,8 +699,6 @@ public class Robot extends TimedRobot {
 			SmartDashboard.putBoolean("LimelightTargetFound", limelightTargetFound);
 			SmartDashboard.putNumber("LimelightWidth", limelightWidth);
 			SmartDashboard.putNumber("LimelightHeight", limelightHeight);
-			SmartDashboard.putNumber("LimelightShort", tshort.getDouble(0.0));
-			SmartDashboard.putNumber("LimelightLong", tlong.getDouble(0.0));
 			SmartDashboard.putNumber("LimelightEstAngle",limelightEstAngle);
 		}
 		/**
