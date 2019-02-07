@@ -111,8 +111,8 @@ public class Robot extends TimedRobot {
 
 			// Magnetic encoders
 			Encoder encoderAngle[] = {
-				new Encoder(2,3),
 				new Encoder(0,1),
+				new Encoder(2,3),
 				new Encoder(6,7),
 				new Encoder(4,5)
 				
@@ -139,15 +139,15 @@ public class Robot extends TimedRobot {
 			
 			// All motors
 			Spark motorAngle[] = { // Directional motors
-				new Spark(7),
 				new Spark(3),
+				new Spark(7),
 				new Spark(6),
 				new Spark(2)
 			};
 			
 			Spark motorDrive[] = { // Movement motors
-				new Spark(5),
 				new Spark(1),
+				new Spark(5),
 				new Spark(4),
 				new Spark(0)
       };
@@ -208,6 +208,10 @@ public class Robot extends TimedRobot {
 					PIDautoAngle[i].setContinuous();
 					PIDautoDistance[i].setOutputRange(-0.2, 0.2);
 				}
+
+				// Reset lift/climb encoders
+				motorLift.setSelectedSensorPosition(0);
+				motorClimb.setSelectedSensorPosition(0);
 			}
 			
 			/**
@@ -272,6 +276,8 @@ public class Robot extends TimedRobot {
 				setAllPIDSetpoints(PIDdrive, 0);
 
 				limelightKillSeeking();
+				motorLift.setSelectedSensorPosition(0);
+				motorClimb.setSelectedSensorPosition(0);
 			}
 			
 			/**
@@ -564,9 +570,9 @@ public class Robot extends TimedRobot {
 					} else motorLift.set(ControlMode.PercentOutput,0);
 
 					// Run the climber
-          if (Math.abs(controlWorking.getRawAxis(5)) >= CONTROL_CLIMB_DEADZONE / 10) {
-            //motorClimb.set(ControlMode.PercentOutput,controlWorking.getRawAxis(5));
-          }
+          if (Math.abs(controlWorking.getRawAxis(5)) >= CONTROL_CLIMB_DEADZONE) {
+            motorClimb.set(ControlMode.PercentOutput,controlWorking.getRawAxis(5) / 2);
+          } else motorClimb.set(ControlMode.PercentOutput,0);
         }
 
 				// End OPERATOR DRIVING
@@ -574,13 +580,15 @@ public class Robot extends TimedRobot {
 
         // Toggle drive mode if single driver interface is active
 
-        if (INTERFACE_SINGLEDRIVER == true && controlDriver.getRawButtonPressed(BUTTON_START) == true) {
+        if (INTERFACE_SINGLEDRIVER == true && controlDriver.getRawButton(BUTTON_START) == true) {
           if (singleDriverController == 0) singleDriverController = 1; else singleDriverController = 0;
         }
         
         // TODO full dashboard dump should go here (unless functions in question are Limelight positioning values)
 				SmartDashboard.putNumber("ControllerID",singleDriverController);
-				
+				SmartDashboard.putNumber("LiftEncoder",motorLift.getSelectedSensorPosition());
+				SmartDashboard.putNumber("ClimbEncoder",motorClimb.getSelectedSensorPosition());
+
 				// End UNIVERSAL FUNCTIONS
 			}
 
