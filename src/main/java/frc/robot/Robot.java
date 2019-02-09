@@ -16,6 +16,7 @@ import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.can.TalonSRX;
 import com.kauailabs.navx.frc.AHRS;
 
+import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.PIDController;
@@ -32,15 +33,17 @@ public class Robot extends TimedRobot {
 			
 			// CONTROLLABLE CONSTANTS
 	
-			final double CONTROL_SPEEDREDUCTION = 2; 	  // teleop drivetrain inputs are divided by this number when turbo is NOT engaged
-			final double CONTROL_DEADZONE = 0.21;       // minimum value before joystick inputs will be considered
-      final double CONTROL_LIFT_DEADZONE = 0.3;   // minimum value before joystick inputs will be considered on the lift
-      final double CONTROL_CLIMB_DEADZONE = 0.3;  // minimum value before joystick inputs will be considered on the climber
+			final double CONTROL_SPEEDREDUCTION = 2; 	  			// teleop drivetrain inputs are divided by this number when turbo is NOT engaged
+			final double CONTROL_DEADZONE = 0.21;       			// minimum value before joystick inputs will be considered
+      final double CONTROL_LIFT_DEADZONE = 0.3;   			// minimum value before joystick inputs will be considered on the lift
+      final double CONTROL_LIFT_PRECISION_FACTOR = 2; 	// lift input is divided by this value when in precision mode
+			final double CONTROL_INTAKE_DEADZONE = .15;				// minimum value before trigger inputs will be considered on intake wheels
+			final double CONTROL_PIVOT_DEADZONE = .06;				// minimum value before joystick inputs will be considered on the pivot arm
 
-			final double CONTROL_CAM_MOE = 5.2;	          // margin of lateral error for that alignment process for the limelight
-			final double CONTROL_CAM_ANGLETHRESHOLD = 9;	// the limelight allows the robot to be +- this value off from its target angle and still call it good
+			final double CONTROL_CAM_MOE = 5.2;	          		// margin of lateral error for that alignment process for the limelight
+			final double CONTROL_CAM_ANGLETHRESHOLD = 9;			// the limelight allows the robot to be +- this value off from its target angle and still call it good
       
-      final boolean INTERFACE_SINGLEDRIVER = true;  // whether or not to enable or disable single driver input (press START to switch between controllers)
+      final boolean INTERFACE_SINGLEDRIVER = true;  		// whether or not to enable or disable single driver input (press START to switch between controllers)
       //=======================================
 			
 			// OTHER CONSTANTS
@@ -83,7 +86,9 @@ public class Robot extends TimedRobot {
 			boolean limelightActive = true;	// true if the robot is collecting limelight data and tracking targets
 			boolean limelightSeeking = false;	// true if the limelight is currently seeking a target
 			int limelightPhase = 0;	// phase for limelight correction, 0=off 1=angular 2=lateral 3=proceed
+			// Operator stuff
 			
+
 			// LIMELIGHT + DATA TABLES
 
 			NetworkTable limelightTable = NetworkTableInstance.getDefault().getTable("limelight");
@@ -151,10 +156,15 @@ public class Robot extends TimedRobot {
 				new Spark(4),
 				new Spark(0)
       };
-      
-      // Lift/Climber
+			
+			DoubleSolenoid solenoidHatchIntake = new DoubleSolenoid(0,1);
+			
+			// Lift/Climber
+			TalonSRX motorPivot = new TalonSRX(1);
+			TalonSRX motorFootWheels = new TalonSRX(2);
       TalonSRX motorLift = new TalonSRX(3);
-      TalonSRX motorClimb = new TalonSRX(4);
+			TalonSRX motorClimb = new TalonSRX(4);
+			TalonSRX motorIntake = new TalonSRX(5);
 			//=======================================
 			
 			// PID LOOPS
@@ -565,15 +575,42 @@ public class Robot extends TimedRobot {
 					if (INTERFACE_SINGLEDRIVER == false) controlWorking = controlOperator; else controlWorking = controlDriver;
 
 					// Run the lift
-          if (Math.abs(controlWorking.getRawAxis(1)) >= CONTROL_LIFT_DEADZONE) {
-            motorLift.set(ControlMode.PercentOutput,-controlWorking.getRawAxis(1));
+          if (Math.abs(controlWorking.getRawAxis(5)) >= CONTROL_LIFT_DEADZONE) {
+            if (controlWorking.getRawButton(4)) motorLift.set(ControlMode.PercentOutput,-controlWorking.getRawAxis(5) / CONTROL_LIFT_PRECISION_FACTOR); else motorLift.set(ControlMode.PercentOutput,-controlWorking.getRawAxis(5));
 					} else motorLift.set(ControlMode.PercentOutput,0);
 
 					// Run the climber
-          if (Math.abs(controlWorking.getRawAxis(5)) >= CONTROL_CLIMB_DEADZONE) {
-            motorClimb.set(ControlMode.PercentOutput,controlWorking.getRawAxis(5) / 2);
-          } else motorClimb.set(ControlMode.PercentOutput,0);
-        }
+          if (controlWorking.getRawButton(1)) {
+            motorClimb.set(ControlMode.PercentOutput,-.5);
+          } else if (controlWorking.getRawButton(3)) {
+						motorClimb.set(ControlMode.PercentOutput,.5);
+					} else motorClimb.set(ControlMode.PercentOutput,0);
+
+					// Run the hatch intake
+					int bumperLeft = 5;int bumperRight = 6;	// temporary, I don't know if these values are correct
+					if (controlWorking.getRawButton(bumperLeft)) {
+						// Open solenoid
+						solenoidHatchIntake.set(DoubleSolenoid.Value.kForward);
+					}
+					if (controlWorking.getRawButton(bumperRight)) {
+						// Close solenoid
+						solenoidHatchIntake.set(DoubleSolenoid.Value.kReverse);
+					}
+
+					// Intake wheel control
+					if (controlWorking.getRawAxis(2) >= CONTROL_INTAKE_DEADZONE) {
+						motorIntake.set(ControlMode.PercentOutput,controlWorking.getRawAxis(2));
+					} else if (controlWorking.getRawAxis(3) >= CONTROL_INTAKE_DEADZONE) {
+						motorIntake.set(ControlMode.PercentOutput,controlWorking.getRawAxis(3));
+					} else motorIntake.set(ControlMode.PercentOutput,0);
+ 
+					// Pivot control
+					if (Math.abs(controlWorking.getRawAxis(1)) >= CONTROL_PIVOT_DEADZONE) {
+						motorPivot.set(ControlMode.PercentOutput,controlWorking.getRawAxis(1) / 2);
+					} else motorPivot.set(ControlMode.PercentOutput,0);
+
+				}
+				if (controlOperator.getPOV() == 0)
 
 				// End OPERATOR DRIVING
 				// Begin UNIVERSAL FUNCTIONS
