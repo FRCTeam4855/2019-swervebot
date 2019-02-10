@@ -28,6 +28,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
+// import edu.christmas.2012.ben10watch.used;
 
 public class Robot extends TimedRobot {
 			
@@ -167,7 +168,7 @@ public class Robot extends TimedRobot {
 			TalonSRX motorIntake = new TalonSRX(5);
 			//=======================================
 			
-			// PID LOOPS
+			// PID LOOPS AND ROUTINES
 
 			// These control the steering motors using the mers (?? idk what mers is)
 			PIDController PIDdrive[] = {
@@ -195,6 +196,15 @@ public class Robot extends TimedRobot {
 					new PIDController(0.025,0,0.01,encoderDistance,motorDrive[3])
 				};
 			
+			// Action queues
+			ActionQueue actionQueues[] = {
+				new ActionQueue(),
+				new ActionQueue()
+			};
+
+			// Reference IDs for action queues
+			final int QUEUE_STRAIGHTLINE = 0;
+			final int QUEUE_LIFTLLEVEL3 = 0;
 
 			// End of variable definitions
 			// <--- ROBOT INITIALIZATION --->
@@ -204,14 +214,13 @@ public class Robot extends TimedRobot {
 			 */
 			@Override
 			public void robotInit() {
-				
+				// Configure swerve wheel PID loops
 				PIDdrive[0].setOutputRange(-1, 1);
 				PIDdrive[1].setOutputRange(-1, 1);
 				PIDdrive[2].setOutputRange(-1, 1);
 				PIDdrive[3].setOutputRange(-1, 1);
 				
-				//Autonomous wheel speed loop settings
-				
+				// Autonomous wheel speed loop settings
 				for (int i=0;i<=3;i++) {
 					PIDautoAngle[i].setOutputRange(-0.5, 0.5);
 					PIDautoAngle[i].setInputRange(-180, 180);
@@ -222,6 +231,10 @@ public class Robot extends TimedRobot {
 				// Reset lift/climb encoders
 				motorLift.setSelectedSensorPosition(0);
 				motorClimb.setSelectedSensorPosition(0);
+
+				// Feed action queues, they hunger for your command
+				actionQueues[QUEUE_STRAIGHTLINE].queueFeed(ActionQueue.Command.SWERVE,1,50,0,0,0);
+				actionQueues[QUEUE_STRAIGHTLINE].queueFeed(ActionQueue.Command.LIFT,40,-2,-3000,0,0);
 			}
 			
 			/**
@@ -616,11 +629,13 @@ public class Robot extends TimedRobot {
 				// Begin UNIVERSAL FUNCTIONS
 
         // Toggle drive mode if single driver interface is active
-
         if (INTERFACE_SINGLEDRIVER == true && controlDriver.getRawButton(BUTTON_START) == true) {
           if (singleDriverController == 0) singleDriverController = 1; else singleDriverController = 0;
         }
-        
+				
+				// Run action queues
+				runQueues(actionQueues);
+				
         // TODO full dashboard dump should go here (unless functions in question are Limelight positioning values)
 				SmartDashboard.putNumber("ControllerID",singleDriverController);
 				SmartDashboard.putNumber("LiftEncoder",motorLift.getSelectedSensorPosition());
@@ -764,5 +779,52 @@ public class Robot extends TimedRobot {
 			limelightSeeking = false;
 			limelightPhase = 0;
 			limelightInputTimer = -1;
+		}
+
+		/**
+		 * Tell all of the action queues to run if they are enabled.
+		 * 
+		 * queues[] the array of queues to iterate through
+		 */
+		public void runQueues(ActionQueue queues[]) {
+			for (int i = 0; i < queues.length; i++) {
+				if (queues[i].queueIsRunning == true) queues[i].queueRun();
+			}
+		}
+
+		/**
+		 * The queue action for preparing a turn.
+		 * 
+		 * @param timeEnd the designated time for the command to end
+		 * @param param1 the first parameter
+		 * @param param2 the second parameter
+		 * @param param3 the third parameter
+		 */
+		public static void queuePrepare_Turn(int timeEnd, double param1, double param2, double param3) {
+
+		}
+
+		/**
+		 * The queue action for swerving in its raw form. This is completed relative to the ROBOT.
+		 * 
+		 * @param timeEnd the designated time for the command to end
+		 * @param param1 the first parameter, FWD
+		 * @param param2 the second parameter, STR
+		 * @param param3 the third parameter, RCW
+		 */
+		public static void queueSwerve(int timeEnd, double param1, double param2, double param3) {
+			
+		}
+
+		/**
+		 * The queue action for operating the lift.
+		 * 
+		 * @param timeEnd the designated time for the command to end
+		 * @param param1 the first parameter
+		 * @param param2 the second parameter
+		 * @param param3 the third parameter
+		 */
+		public static void queueLift(int timeEnd, double param1, double param2, double param3) {
+			
 		}
   }
