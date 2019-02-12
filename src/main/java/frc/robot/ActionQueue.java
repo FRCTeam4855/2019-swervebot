@@ -2,7 +2,7 @@ package frc.robot;
 
 public class ActionQueue {
 	enum Command {
-		DEAD, PREPARE_TURN, SWERVE, LIFT, PIVOT, HATCH_INTAKE, CARGO_INTAKE, FOOT_WHEELS, FOOT_EXTEND;
+		DEAD, PREPARE_TURN, SWERVE, LIFT, PIVOT, HATCH_INTAKE, CARGO_INTAKE, FOOT_WHEELS, FOOT_EXTEND, LIFT_STAGE;
 	}
 	
 	Command queueListActions [] = {						// action ID to perform
@@ -84,10 +84,13 @@ public class ActionQueue {
                 // Run a certain action. Parameters will be shipped to the robot class along with the command.
                 switch (queueListActions[i]) {
                     case PREPARE_TURN:
-                        Robot.queuePrepare_Turn(queueListTimeEnd[i],queueListParam1[i],queueListParam2[i],queueListParam3[i]);
+                        Robot.queuePrepare_Turn(queueListTimeEnd[i],queueListParam1[i],queueListParam2[i]);
                         break;
                     case SWERVE:
-                        Robot.queuePrepare_Turn(queueListTimeEnd[i],queueListParam1[i],queueListParam2[i],queueListParam3[i]);
+                        Robot.queueSwerve(queueListTimeEnd[i],queueListParam1[i],queueListParam2[i],queueListParam3[i]);
+                        break;
+                    case HATCH_INTAKE:
+                        Robot.queueHatchIntake(queueListTimeEnd[i],queueListParam1[i]);
                     default:
                         break;
                 }

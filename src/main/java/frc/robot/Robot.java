@@ -29,6 +29,11 @@ import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
 // import edu.christmas.2012.ben10watch.used;
+// import com.nintendo.gameboy.pikachu;
+
+// public class Faucet extends PikachuGameboy {
+
+//}
 
 public class Robot extends TimedRobot {
 			
@@ -40,6 +45,7 @@ public class Robot extends TimedRobot {
       final double CONTROL_LIFT_PRECISION_FACTOR = 2; 	// lift input is divided by this value when in precision mode
 			final double CONTROL_INTAKE_DEADZONE = .15;				// minimum value before trigger inputs will be considered on intake wheels
 			final double CONTROL_PIVOT_DEADZONE = .06;				// minimum value before joystick inputs will be considered on the pivot arm
+			final double CONTROL_FOOTWHEEL_DEADZONE = .12;		// minimum value before trigger inputs will be considered on foot wheels
 
 			final double CONTROL_CAM_MOE = 5.2;	          		// margin of lateral error for that alignment process for the limelight
 			final double CONTROL_CAM_ANGLETHRESHOLD = 9;			// the limelight allows the robot to be +- this value off from its target angle and still call it good
@@ -158,7 +164,7 @@ public class Robot extends TimedRobot {
 				new Spark(0)
       };
 			
-			DoubleSolenoid solenoidHatchIntake = new DoubleSolenoid(0,1);
+			static DoubleSolenoid solenoidHatchIntake = new DoubleSolenoid(0,1);
 			
 			// Lift/Climber
 			TalonSRX motorPivot = new TalonSRX(1);
@@ -369,14 +375,13 @@ public class Robot extends TimedRobot {
 			 */
 			@Override
 			public void teleopPeriodic() {
-				
-				SmartDashboard.putNumber("CIMCODER", encoderDistance.get());
-        SmartDashboard.putNumber("Gyro", ahrs.getYaw());
-        
+
         // Begin DRIVER CONTROL
 
 				if (INTERFACE_SINGLEDRIVER == false || (INTERFACE_SINGLEDRIVER == true && singleDriverController == 0)) {
-          controlWorking = controlDriver;
+					controlWorking = controlDriver;
+					
+					// Drive the robot
           if (!emergencyTank) {
             if (!controlWorking.getRawButton(1) && !limelightSeeking) {
               driverOriented = true;
@@ -418,13 +423,14 @@ public class Robot extends TimedRobot {
             setAllPIDSetpoints(PIDdrive, 0);
           }
 
-          SmartDashboard.putNumber("Encoder1:", encoderAngle[0].get());
-          SmartDashboard.putNumber("Encoder2:", encoderAngle[1].get());
-          SmartDashboard.putNumber("Encoder3:", encoderAngle[2].get());
-          SmartDashboard.putNumber("Encoder4:", encoderAngle[3].get());
+					// Foot wheel control
+					if (controlWorking.getRawAxis(2) >= CONTROL_FOOTWHEEL_DEADZONE) {
+						motorFootWheels.set(ControlMode.PercentOutput,controlWorking.getRawAxis(2));
+					} else if (controlWorking.getRawAxis(3) >= CONTROL_FOOTWHEEL_DEADZONE) {
+						motorFootWheels.set(ControlMode.PercentOutput,controlWorking.getRawAxis(3));
+					} else motorFootWheels.set(ControlMode.PercentOutput,0);
 
           // LIMELIGHT SEEKING CODE
-
           // Toggle Limelight activity
           if (controlWorking.getRawButtonPressed(BUTTON_LB)) {
             if (limelightActive) limelightActive = false; else limelightActive = true;
@@ -433,12 +439,6 @@ public class Robot extends TimedRobot {
           if (limelightSeeking == true && ((controlWorking.getRawAxis(0) >= .3 || controlWorking.getRawAxis(0) <= -.3) || (controlWorking.getRawAxis(1) >= .3 || controlWorking.getRawAxis(1) <= -.3) || (controlWorking.getRawAxis(4) >= .3 || controlWorking.getRawAxis(4) <= -.3))) {
             limelightKillSeeking();
           }
-
-          SmartDashboard.putNumber("YawAxis",ahrs.getYaw());
-          SmartDashboard.putBoolean("limelightActive",limelightActive);
-          SmartDashboard.putBoolean("limelightSeeking",limelightSeeking);
-          SmartDashboard.putNumber("limelightGoalAngle",limelightGoalAngle);
-          SmartDashboard.putNumber("limelightROC",limelightROC);
           // Run Limelight searching if active
           if (limelightActive == true) {
             ledMode.setNumber(0);	// turn leds on
@@ -640,6 +640,17 @@ public class Robot extends TimedRobot {
 				SmartDashboard.putNumber("ControllerID",singleDriverController);
 				SmartDashboard.putNumber("LiftEncoder",motorLift.getSelectedSensorPosition());
 				SmartDashboard.putNumber("ClimbEncoder",motorClimb.getSelectedSensorPosition());
+				SmartDashboard.putNumber("CIMCODER", encoderDistance.get());
+				SmartDashboard.putNumber("Gyro-Yaw", ahrs.getYaw());
+				SmartDashboard.putNumber("Encoder1:", encoderAngle[0].get());
+				SmartDashboard.putNumber("Encoder2:", encoderAngle[1].get());
+				SmartDashboard.putNumber("Encoder3:", encoderAngle[2].get());
+				SmartDashboard.putNumber("Encoder4:", encoderAngle[3].get());
+				SmartDashboard.putNumber("YawAxis",ahrs.getYaw());
+				SmartDashboard.putBoolean("limelightActive",limelightActive);
+				SmartDashboard.putBoolean("limelightSeeking",limelightSeeking);
+				SmartDashboard.putNumber("limelightGoalAngle",limelightGoalAngle);
+				SmartDashboard.putNumber("limelightROC",limelightROC);
 
 				// End UNIVERSAL FUNCTIONS
 			}
@@ -659,9 +670,7 @@ public class Robot extends TimedRobot {
 					setAllPIDControllers(PIDdrive, false);
 				}
 				
-				//SmartDashboard.putNumber("AI 1", ai1.getValue());
-				
-				SmartDashboard.putNumber("Joystick y axis", controlWorking.getRawAxis(1));
+				SmartDashboard.putNumber("Joystick y axis", controlDriver.getRawAxis(1));
 				
 				SmartDashboard.putNumber("Encoder1:", encoderAngle[0].get());
 				SmartDashboard.putNumber("Encoder2:", encoderAngle[1].get());
@@ -761,6 +770,7 @@ public class Robot extends TimedRobot {
 			SmartDashboard.putNumber("LimelightHeight", limelightHeight);
 			SmartDashboard.putNumber("LimelightEstAngle",limelightEstAngle);
 		}
+
 		/**
 		 * Returns a value based on sensor inputs.
 		 * 
@@ -782,9 +792,18 @@ public class Robot extends TimedRobot {
 		}
 
 		/**
+		 * Run the lift up to a specified level using PID inputs.
+		 * 
+		 * @param level the desired level for the lift between 1 and 3
+		 */
+		public void liftLevel(int level) {
+			// TODO calibrate lift to certain levels
+		}
+
+		/**
 		 * Tell all of the action queues to run if they are enabled.
 		 * 
-		 * queues[] the array of queues to iterate through
+		 * @param queues[] the array of queues to iterate through
 		 */
 		public void runQueues(ActionQueue queues[]) {
 			for (int i = 0; i < queues.length; i++) {
@@ -793,14 +812,13 @@ public class Robot extends TimedRobot {
 		}
 
 		/**
-		 * The queue action for preparing a turn.
+		 * The queue action for preparing a turn. This is functionally similar to the
 		 * 
 		 * @param timeEnd the designated time for the command to end
-		 * @param param1 the first parameter
-		 * @param param2 the second parameter
-		 * @param param3 the third parameter
+		 * @param param1 the first parameter, the fwd input
+		 * @param param2 the second parameter, the str input
 		 */
-		public static void queuePrepare_Turn(int timeEnd, double param1, double param2, double param3) {
+		public static void queuePrepare_Turn(int timeEnd, double param1, double param2) {
 
 		}
 
@@ -826,5 +844,15 @@ public class Robot extends TimedRobot {
 		 */
 		public static void queueLift(int timeEnd, double param1, double param2, double param3) {
 			
+		}
+
+		/**
+		 * The queue action for operating the hatch intake.
+		 * 
+		 * @param timeEnd the designated time for the command to end
+		 * @param param1 the first parameter, either opening the intake or closing it (0 or 1)
+		 */
+		public static void queueHatchIntake(int timeEnd, double param1) {
+			if (param1 == 0) solenoidHatchIntake.set(DoubleSolenoid.Value.kReverse); else solenoidHatchIntake.set(DoubleSolenoid.Value.kForward);
 		}
   }
