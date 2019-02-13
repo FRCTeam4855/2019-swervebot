@@ -31,10 +31,6 @@ import edu.wpi.first.networktables.NetworkTableInstance;
 // import edu.christmas.2012.ben10watch.used;
 // import com.nintendo.gameboy.pikachu;
 
-// public class Faucet extends PikachuGameboy {
-
-//}
-
 public class Robot extends TimedRobot {
 			
 			// CONTROLLABLE CONSTANTS
@@ -55,24 +51,24 @@ public class Robot extends TimedRobot {
 			
 			// OTHER CONSTANTS
 
-			final double ROBOT_WIDTH = 29;
-			final double ROBOT_LENGTH = 29;
-			final double ROBOT_R = Math.sqrt(Math.pow(ROBOT_LENGTH,2)+Math.pow(ROBOT_WIDTH,2));
-			final double ENC_TO_DEG = 1.158333;
-			final double ABS_TO_DEG = 11.244444;
-			final double ENC_360 = 417;
-			final double IN_TO_ENC = 10.394;
+			final static double ROBOT_WIDTH = 29;
+			final static double ROBOT_LENGTH = 29;
+			final static double ROBOT_R = Math.sqrt(Math.pow(ROBOT_LENGTH,2)+Math.pow(ROBOT_WIDTH,2));
+			final static double ENC_TO_DEG = 1.158333;
+			final static double ABS_TO_DEG = 11.244444;
+			final static double ENC_360 = 417;
+			final static double IN_TO_ENC = 10.394;
 			// buttons
-			final int BUTTON_A = 1;
-			final int BUTTON_B = 2;
-			final int BUTTON_X = 3;
-			final int BUTTON_Y = 4;
-			final int BUTTON_LB = 5;
-			final int BUTTON_RB = 6;
-			final int BUTTON_SELECT = 7;
-			final int BUTTON_START = 8;
-			final int BUTTON_LSTICK = 9;
-			final int BUTTON_RSTICK = 10;
+			final static int BUTTON_A = 1;
+			final static int BUTTON_B = 2;
+			final static int BUTTON_X = 3;
+			final static int BUTTON_Y = 4;
+			final static int BUTTON_LB = 5;
+			final static int BUTTON_RB = 6;
+			final static int BUTTON_SELECT = 7;
+			final static int BUTTON_START = 8;
+			final static int BUTTON_LSTICK = 9;
+			final static int BUTTON_RSTICK = 10;
 
 			// BEGINNING VARIABLES
 			
@@ -82,20 +78,19 @@ public class Robot extends TimedRobot {
 			boolean reverseRotate = false; // ?????
 			boolean driverOriented = true; // true = driver oriented, false = robot oriented
 			// All for calculating wheel speed/angle, if you need to read from a motor don't pull from these
-			double a, b, c, d, max, temp, rads; 
-			double encoderSetpointA, encoderSetpointB, encoderSetpointC, encoderSetpointD;
-			double jStr, jFwd, jRcw;
-			double wheelSpeed1, wheelSpeed2, wheelSpeed3, wheelSpeed4;
+			static double a, b, c, d, max, temp, rads; 
+			static double encoderSetpointA, encoderSetpointB, encoderSetpointC, encoderSetpointD;
+			static double jStr, jFwd, jRcw;
+			static double wheelSpeed1, wheelSpeed2, wheelSpeed3, wheelSpeed4;
 			// Gradual starts/stops in teleop
-			double wheelSpeedActual1 = 0, wheelSpeedActual2 = 0, wheelSpeedActual3 = 0, wheelSpeedActual4 = 0;
-			Timer wheelSpeedTimer = new Timer();
+			static double wheelSpeedActual1 = 0, wheelSpeedActual2 = 0, wheelSpeedActual3 = 0, wheelSpeedActual4 = 0;
+			static Timer wheelSpeedTimer = new Timer();
 			// For limelight
 			boolean limelightActive = true;	// true if the robot is collecting limelight data and tracking targets
 			boolean limelightSeeking = false;	// true if the limelight is currently seeking a target
 			int limelightPhase = 0;	// phase for limelight correction, 0=off 1=angular 2=lateral 3=proceed
-			// Operator stuff
+			//=======================================
 			
-
 			// LIMELIGHT + DATA TABLES
 
 			NetworkTable limelightTable = NetworkTableInstance.getDefault().getTable("limelight");
@@ -103,7 +98,7 @@ public class Robot extends TimedRobot {
 			NetworkTableEntry ty = limelightTable.getEntry("ty");										// the y offset from the crosshairs
 			NetworkTableEntry ta = limelightTable.getEntry("ta");										// the area (0-100) of the object
 			NetworkTableEntry tv = limelightTable.getEntry("tv");										// 1 if object is tracking, 0 if not
-			NetworkTableEntry thor = limelightTable.getEntry("thor");						// 0-320 width of the box
+			NetworkTableEntry thor = limelightTable.getEntry("thor");								// 0-320 width of the box
 			NetworkTableEntry tvert = limelightTable.getEntry("tvert");							// 0-320 height of the box
 
 			NetworkTableEntry tshort = limelightTable.getEntry("tshort");						// 0-320 value of shortest side
@@ -122,7 +117,7 @@ public class Robot extends TimedRobot {
 			// DEFINING HARDWARE
 
 			// Magnetic encoders
-			Encoder encoderAngle[] = {
+			static Encoder encoderAngle[] = {
 				new Encoder(0,1),
 				new Encoder(2,3),
 				new Encoder(6,7),
@@ -131,7 +126,7 @@ public class Robot extends TimedRobot {
 			};
 
 			// Define swerve wheel classes
-			Wheel wheel[] = {
+			static Wheel wheel[] = {
 				new Wheel(encoderAngle[0]),
 				new Wheel(encoderAngle[1]),
 				new Wheel(encoderAngle[2]),
@@ -139,7 +134,7 @@ public class Robot extends TimedRobot {
 			};
       
 			// The one CIMcoder on the bot, measures distance traveled
-			Encoder encoderDistance = new Encoder(8,9);	// TODO wire this up and update the ports
+			static Encoder encoderDistance = new Encoder(8,9);	// TODO wire this up and update the ports
 			
 			// Xbox controllers
 			Joystick controlDriver = new Joystick(0);			// the joystick responsible for driving
@@ -147,17 +142,17 @@ public class Robot extends TimedRobot {
       Joystick controlWorking;  										// the controller currently being read from, usually used just for one-driver control
 			
 			// NavX Constructor
-			AHRS ahrs = new AHRS(SPI.Port.kMXP);
+			static AHRS ahrs = new AHRS(SPI.Port.kMXP);
 			
 			// All motors
-			Spark motorAngle[] = { // Directional motors
+			static Spark motorAngle[] = { // Directional motors
 				new Spark(3),
 				new Spark(7),
 				new Spark(6),
 				new Spark(2)
 			};
 			
-			Spark motorDrive[] = { // Movement motors
+			static Spark motorDrive[] = { // Movement motors
 				new Spark(1),
 				new Spark(5),
 				new Spark(4),
@@ -167,17 +162,17 @@ public class Robot extends TimedRobot {
 			static DoubleSolenoid solenoidHatchIntake = new DoubleSolenoid(0,1);
 			
 			// Lift/Climber
-			TalonSRX motorPivot = new TalonSRX(1);
-			TalonSRX motorFootWheels = new TalonSRX(2);
-      TalonSRX motorLift = new TalonSRX(3);
-			TalonSRX motorClimb = new TalonSRX(4);
-			TalonSRX motorIntake = new TalonSRX(5);
+			static TalonSRX motorPivot = new TalonSRX(1);
+			static TalonSRX motorFootWheels = new TalonSRX(2);
+      static TalonSRX motorLift = new TalonSRX(3);
+			static TalonSRX motorClimb = new TalonSRX(4);
+			static TalonSRX motorIntake = new TalonSRX(5);
 			//=======================================
 			
 			// PID LOOPS AND ROUTINES
 
 			// These control the steering motors using the mers (?? idk what mers is)
-			PIDController PIDdrive[] = {
+			static PIDController PIDdrive[] = {
 				new PIDController(0.035,0,0.01,encoderAngle[0],motorAngle[0]),
 				new PIDController(0.035,0,0.01,encoderAngle[1],motorAngle[1]),
 				new PIDController(0.035,0,0.01,encoderAngle[2],motorAngle[2]),
@@ -187,7 +182,7 @@ public class Robot extends TimedRobot {
 			// Left behind in old program, unsure if they are necessary yet
 			
 				// These are used for autonomous in the turning to a specific angle
-				PIDController PIDautoAngle[] = {
+				static PIDController PIDautoAngle[] = {
 					new PIDController(0.06,0,0.013,ahrs,motorDrive[0]),
 					new PIDController(0.06,0,0.013,ahrs,motorDrive[1]),
 					new PIDController(0.06,0,0.013,ahrs,motorDrive[2]),
@@ -195,7 +190,7 @@ public class Robot extends TimedRobot {
 				};
 				
 				// These are used for autonomous in moving to a certain distance
-				PIDController PIDautoDistance[] = {
+				static PIDController PIDautoDistance[] = {
 					new PIDController(0.025,0,0.01,encoderDistance,motorDrive[0]),
 					new PIDController(0.025,0,0.01,encoderDistance,motorDrive[1]),
 					new PIDController(0.025,0,0.01,encoderDistance,motorDrive[2]),
@@ -211,6 +206,7 @@ public class Robot extends TimedRobot {
 			// Reference IDs for action queues
 			final int QUEUE_STRAIGHTLINE = 0;
 			final int QUEUE_LIFTLLEVEL3 = 0;
+			//=======================================
 
 			// End of variable definitions
 			// <--- ROBOT INITIALIZATION --->
@@ -239,8 +235,8 @@ public class Robot extends TimedRobot {
 				motorClimb.setSelectedSensorPosition(0);
 
 				// Feed action queues, they hunger for your command
-				actionQueues[QUEUE_STRAIGHTLINE].queueFeed(ActionQueue.Command.SWERVE,1,50,0,0,0);
-				actionQueues[QUEUE_STRAIGHTLINE].queueFeed(ActionQueue.Command.LIFT,40,-2,-3000,0,0);
+				actionQueues[QUEUE_STRAIGHTLINE].queueFeed(ActionQueue.Command.SWERVE,1,50,false,0,0,0);
+				actionQueues[QUEUE_STRAIGHTLINE].queueFeed(ActionQueue.Command.LIFT,40,-2,true,-3000,0,0);
 			}
 			
 			/**
@@ -316,7 +312,7 @@ public class Robot extends TimedRobot {
 			 * @param STR The desired strafing speed of the robot
 			 * @param RCW The desired rotation speed of the robot
 			 */
-			public void swerve(double FWD,double STR,double RCW,boolean driverOriented) {
+			public static void swerve(double FWD,double STR,double RCW,boolean driverOriented) {
 				if (driverOriented) {
 					rads = ahrs.getYaw() * Math.PI/180;
 					temp = FWD*Math.cos(rads) + STR*Math.sin(rads);
@@ -377,7 +373,7 @@ public class Robot extends TimedRobot {
 			public void teleopPeriodic() {
 
         // Begin DRIVER CONTROL
-
+				// TODO redo controls to fit new control schematics
 				if (INTERFACE_SINGLEDRIVER == false || (INTERFACE_SINGLEDRIVER == true && singleDriverController == 0)) {
 					controlWorking = controlDriver;
 					
@@ -469,7 +465,7 @@ public class Robot extends TimedRobot {
                 // In this mode, limelightPhase defines what action is currently taking place. Each phase will pass when certain conditions are met.
                 case 0:
                   // Phase 1: angle flush with the target (skipped for now)
-
+									// TODO remove the angle step entirely
                   if (limelightPhase == 1) {
                     //swerve(0,sign * Math.max(Math.abs(limelightX),CONTROL_CAM_CORRECTBOTTOM),0,false);*/
 										// Omitted for now
@@ -636,7 +632,7 @@ public class Robot extends TimedRobot {
 				// Run action queues
 				runQueues(actionQueues);
 				
-        // TODO full dashboard dump should go here (unless functions in question are Limelight positioning values)
+				// Dashboard dump
 				SmartDashboard.putNumber("ControllerID",singleDriverController);
 				SmartDashboard.putNumber("LiftEncoder",motorLift.getSelectedSensorPosition());
 				SmartDashboard.putNumber("ClimbEncoder",motorClimb.getSelectedSensorPosition());
@@ -710,7 +706,6 @@ public class Robot extends TimedRobot {
 
 		/**
 		 * Sets all drive wheels to a single value. This is good for turning all the motors off.
-		 * 
 		 * @param val is the value to set all the wheels to
 		 */
 		public void setAllWheels(double val) {
@@ -773,7 +768,6 @@ public class Robot extends TimedRobot {
 
 		/**
 		 * Returns a value based on sensor inputs.
-		 * 
 		 * @param p - the proportional constant
 		 * @param currentSensor - whatever your current sensor value is
 		 * @param desiredSensor - whatever you want the sensor to become after change
@@ -793,7 +787,6 @@ public class Robot extends TimedRobot {
 
 		/**
 		 * Run the lift up to a specified level using PID inputs.
-		 * 
 		 * @param level the desired level for the lift between 1 and 3
 		 */
 		public void liftLevel(int level) {
@@ -802,7 +795,6 @@ public class Robot extends TimedRobot {
 
 		/**
 		 * Tell all of the action queues to run if they are enabled.
-		 * 
 		 * @param queues[] the array of queues to iterate through
 		 */
 		public void runQueues(ActionQueue queues[]) {
@@ -812,47 +804,62 @@ public class Robot extends TimedRobot {
 		}
 
 		/**
-		 * The queue action for preparing a turn. This is functionally similar to the
-		 * 
+		 * The queue action for preparing a turn. This is functionally similar to the queueSwerve command
 		 * @param timeEnd the designated time for the command to end
 		 * @param param1 the first parameter, the fwd input
 		 * @param param2 the second parameter, the str input
 		 */
 		public static void queuePrepare_Turn(int timeEnd, double param1, double param2) {
-
+			swerve(param1,param2,0,false);
 		}
 
 		/**
 		 * The queue action for swerving in its raw form. This is completed relative to the ROBOT.
-		 * 
 		 * @param timeEnd the designated time for the command to end
 		 * @param param1 the first parameter, FWD
 		 * @param param2 the second parameter, STR
 		 * @param param3 the third parameter, RCW
 		 */
 		public static void queueSwerve(int timeEnd, double param1, double param2, double param3) {
-			
+			swerve(param1,param2,param3,false);
 		}
 
 		/**
 		 * The queue action for operating the lift.
-		 * 
 		 * @param timeEnd the designated time for the command to end
-		 * @param param1 the first parameter
-		 * @param param2 the second parameter
-		 * @param param3 the third parameter
+		 * @param param1 the first parameter, the value to set the lift to
+		 * @param param2 the second parameter, whether to be a percent, 0, or a setpoint, 1
 		 */
-		public static void queueLift(int timeEnd, double param1, double param2, double param3) {
-			
+		public static void queueLift(int timeEnd, double param1, double param2) {
+			ControlMode myControlMode = ControlMode.PercentOutput;
+			if (param2 == 1) myControlMode = ControlMode.Position;
+			motorLift.set(myControlMode,param1);
 		}
 
 		/**
 		 * The queue action for operating the hatch intake.
-		 * 
 		 * @param timeEnd the designated time for the command to end
 		 * @param param1 the first parameter, either opening the intake or closing it (0 or 1)
 		 */
 		public static void queueHatchIntake(int timeEnd, double param1) {
 			if (param1 == 0) solenoidHatchIntake.set(DoubleSolenoid.Value.kReverse); else solenoidHatchIntake.set(DoubleSolenoid.Value.kForward);
+		}
+
+		/**
+		 * The queue action for operating the cargo intake wheels.
+		 * @param timeEnd the designated time for the command to end
+		 * @param param1 the first parameter, the value to set the wheels to
+		 */
+		public static void queueCargoIntake(int timeEnd, double param1) {
+			motorIntake.set(ControlMode.PercentOutput,param1);
+		}
+
+		/**
+		 * The queue action for operating the foot wheels.
+		 * @param timeEnd the designated time for the command to end
+		 * @param param1 the first parameter, the value to set the wheels to
+		 */
+		public static void queueFootWheels(int timeEnd, double param1) {
+			motorFootWheels.set(ControlMode.PercentOutput,param1);
 		}
   }
