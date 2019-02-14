@@ -46,7 +46,7 @@ public class Robot extends TimedRobot {
 			final double CONTROL_CAM_MOE = 5.2;	          		// margin of lateral error for that alignment process for the limelight
 			final double CONTROL_CAM_ANGLETHRESHOLD = 9;			// the limelight allows the robot to be +- this value off from its target angle and still call it good
       
-      final boolean INTERFACE_SINGLEDRIVER = true;  		// whether or not to enable or disable single driver input (press START to switch between controllers)
+      final boolean INTERFACE_SINGLEDRIVER = false;  		// whether or not to enable or disable single driver input (press START to switch between controllers)
       //=======================================
 			
 			// OTHER CONSTANTS
@@ -423,7 +423,7 @@ public class Robot extends TimedRobot {
 					if (controlWorking.getRawAxis(2) >= CONTROL_FOOTWHEEL_DEADZONE) {
 						motorFootWheels.set(ControlMode.PercentOutput,controlWorking.getRawAxis(2));
 					} else if (controlWorking.getRawAxis(3) >= CONTROL_FOOTWHEEL_DEADZONE) {
-						motorFootWheels.set(ControlMode.PercentOutput,controlWorking.getRawAxis(3));
+						motorFootWheels.set(ControlMode.PercentOutput,-controlWorking.getRawAxis(3));
 					} else motorFootWheels.set(ControlMode.PercentOutput,0);
 
           // LIMELIGHT SEEKING CODE
@@ -488,10 +488,10 @@ public class Robot extends TimedRobot {
                       if (Math.signum(ahrs.getYaw()) != Math.signum(limelightGoalAngle)) limelightGoalAngle *= Math.signum(ahrs.getYaw());	// if the angle I want is negative and I'm positive then change the target to my angle
                       limelightPIDAngle = -proportionalLoop(.0036,ahrs.getYaw(),limelightGoalAngle);	// find the motor speed required to reach my target angle
                       if (-CONTROL_CAM_ANGLETHRESHOLD < limelightGoalAngle && limelightGoalAngle < CONTROL_CAM_ANGLETHRESHOLD) limelightPIDAngle = 0;	// if I'm close enough to the target angle then don't bother adjusting it
-                      swerve(0,-proportionalLoop(.0366,limelightX,0),limelightPIDAngle,false);	// actual move function
+                      swerve(0,proportionalLoop(.0390,limelightX,0),limelightPIDAngle,false);	// actual move function
                     }
                     // Proceed to next step
-                    if ((-CONTROL_CAM_MOE < limelightX && limelightX < CONTROL_CAM_MOE) && (-CONTROL_CAM_ANGLETHRESHOLD + limelightGoalAngle < ahrs.getYaw() && ahrs.getYaw() < CONTROL_CAM_ANGLETHRESHOLD + limelightGoalAngle)) {	// if I'm laterally within margin of error and my angle is within threshold
+                    if ((Math.abs(limelightX) < CONTROL_CAM_MOE)/* && (-CONTROL_CAM_ANGLETHRESHOLD + limelightGoalAngle < ahrs.getYaw() && ahrs.getYaw() < CONTROL_CAM_ANGLETHRESHOLD + limelightGoalAngle)*/) {	// if I'm laterally within margin of error and my angle is within threshold
                       limelightPhase = 3;
                       limelightInputTimer = 50;
                     }
@@ -504,7 +504,7 @@ public class Robot extends TimedRobot {
                     if (limelightInputTimer > 0) {
                       limelightInputTimer --; 
                       swerve(.1,0,0,false);
-                    } else swerve(proportionalLoop(.004,limelightArea,90),-proportionalLoop(.02,limelightX,0),0,false);	// the .025 argument on the ROT corrects the natural drift of the robot
+                    } else swerve(-proportionalLoop(.004,limelightArea,90),proportionalLoop(.02,limelightX,0),0,false);	// the .025 argument on the ROT corrects the natural drift of the robot
 
                     // Proceed to next step
                     if (limelightArea >= 70) {
@@ -599,18 +599,18 @@ public class Robot extends TimedRobot {
 					int bumperLeft = 5;int bumperRight = 6;	// temporary, I don't know if these values are correct
 					if (controlWorking.getRawButton(bumperLeft)) {
 						// Open solenoid
-						solenoidHatchIntake.set(DoubleSolenoid.Value.kForward);
+						solenoidHatchIntake.set(DoubleSolenoid.Value.kReverse);
 					}
 					if (controlWorking.getRawButton(bumperRight)) {
 						// Close solenoid
-						solenoidHatchIntake.set(DoubleSolenoid.Value.kReverse);
+						solenoidHatchIntake.set(DoubleSolenoid.Value.kForward);
 					}
 
 					// Intake wheel control
 					if (controlWorking.getRawAxis(2) >= CONTROL_INTAKE_DEADZONE) {
 						motorIntake.set(ControlMode.PercentOutput,controlWorking.getRawAxis(2));
 					} else if (controlWorking.getRawAxis(3) >= CONTROL_INTAKE_DEADZONE) {
-						motorIntake.set(ControlMode.PercentOutput,controlWorking.getRawAxis(3));
+						motorIntake.set(ControlMode.PercentOutput,-controlWorking.getRawAxis(3));
 					} else motorIntake.set(ControlMode.PercentOutput,0);
  
 					// Pivot control
@@ -842,7 +842,7 @@ public class Robot extends TimedRobot {
 		 * @param param1 the first parameter, either opening the intake or closing it (0 or 1)
 		 */
 		public static void queueHatchIntake(int timeEnd, double param1) {
-			if (param1 == 0) solenoidHatchIntake.set(DoubleSolenoid.Value.kReverse); else solenoidHatchIntake.set(DoubleSolenoid.Value.kForward);
+			if (param1 == 0) solenoidHatchIntake.set(DoubleSolenoid.Value.kForward); else solenoidHatchIntake.set(DoubleSolenoid.Value.kReverse);
 		}
 
 		/**

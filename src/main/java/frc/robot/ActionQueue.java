@@ -10,20 +10,20 @@ public class ActionQueue {
 		DEAD, PREPARE_TURN, SWERVE, LIFT, PIVOT, HATCH_INTAKE, CARGO_INTAKE, FOOT_WHEELS, FOOT_EXTEND, LIFT_STAGE;
 	}
 	
-	Command queueListActions [] = {							// action ID to perform
-		Command.DEAD, Command.DEAD, Command.DEAD
+	Command queueListActions [] = {			// action ID to perform
+		Command.DEAD
 	};
-	int queueListTimeStart [] = {-1,-1,-1,-1,-1};			// elapsed begin time to run a command
-	int queueListTimeEnd [] = {-1,-1,-1,-1,-1};				// elapsed begin time to end a command, a value of -2 means a desired sensor output must be present to stop
-	boolean queueListKillMotor[] = {false, false, false};	// whether to kill designated motors after the command is stopped or not
-	double queueListParam1 [] = {0.0,0.0,0.0,0.0,0.0};		// parameter 1 for queue item
-	double queueListParam2 [] = {0.0,0.0,0.0,0.0,0.0};		// parameter 2 for queue item
-	double queueListParam3 [] = {0.0,0.0,0.0,0.0,0.0};		// parameter 3 for queue item
+	int queueListTimeStart [] = {-1};		// elapsed begin time to run a command
+	int queueListTimeEnd [] = {-1};			// elapsed begin time to end a command, a value of -2 means a desired sensor output must be present to stop
+	boolean queueListKillMotor[] = {false};	// whether to kill designated motors after the command is stopped or not
+	double queueListParam1 [] = {0.0};		// parameter 1 for queue item
+	double queueListParam2 [] = {0.0};		// parameter 2 for queue item
+	double queueListParam3 [] = {0.0};		// parameter 3 for queue item
 	
-	int queueElapsedTime = 0;								// current elapsed time for this command in code steps (50 steps in 1 second)
-	boolean queueIsRunning = false;							// if queue is enabled or not
+	int queueElapsedTime = 0;				// current elapsed time for this command in code steps (50 steps in 1 second)
+	boolean queueIsRunning = false;			// if queue is enabled or not
 	
-	int queueMaxTime = -1;									// largest end time in queue
+	int queueMaxTime = -1;					// largest end time in queue
 	
 	/**
 	 * Feeds the queue a new command. Commands can be assigned in any order.
@@ -35,13 +35,13 @@ public class ActionQueue {
 	 * @param param3 the 3rd parameter
 	 */
 	public void queueFeed(Command action, int timeStart, int timeEnd, boolean killMotor, double param1, double param2, double param3) {
-		queueListActions[queueListActions.length] = action;
-		queueListTimeStart[queueListTimeStart.length] = timeStart;
-		queueListTimeEnd[queueListTimeEnd.length] = timeEnd;
-		queueListKillMotor[queueListKillMotor.length] = killMotor;
-		queueListParam1[queueListParam1.length] = param1;
-		queueListParam2[queueListParam2.length] = param2;
-		queueListParam3[queueListParam3.length] = param3;
+		queueListActions[queueListActions.length - 1] = action;
+		queueListTimeStart[queueListTimeStart.length - 1] = timeStart;
+		queueListTimeEnd[queueListTimeEnd.length - 1] = timeEnd;
+		queueListKillMotor[queueListKillMotor.length - 1] = killMotor;
+		queueListParam1[queueListParam1.length - 1] = param1;
+		queueListParam2[queueListParam2.length - 1] = param2;
+		queueListParam3[queueListParam3.length - 1] = param3;
 	}
 	
 	/**
