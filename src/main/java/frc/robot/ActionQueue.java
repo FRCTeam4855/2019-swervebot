@@ -10,21 +10,23 @@ public class ActionQueue {
 		DEAD, PREPARE_TURN, SWERVE, LIFT, PIVOT, HATCH_INTAKE, CARGO_INTAKE, FOOT_WHEELS, FOOT_EXTEND, LIFT_STAGE;
 	}
 	
-	Command queueListActions [] = {			// action ID to perform
+	/*Command queueListActions [] = {					// action ID to perform
 		Command.DEAD
-	};
-	int queueListTimeStart [] = {-1};		// elapsed begin time to run a command
-	int queueListTimeEnd [] = {-1};			// elapsed begin time to end a command, a value of -2 means a desired sensor output must be present to stop
-	boolean queueListKillMotor[] = {false};	// whether to kill designated motors after the command is stopped or not
-	double queueListParam1 [] = {0.0};		// parameter 1 for queue item
-	double queueListParam2 [] = {0.0};		// parameter 2 for queue item
-	double queueListParam3 [] = {0.0};		// parameter 3 for queue item
+	};*/
+	Command queueListActions [] = new Command [20];
+
+	int queueListTimeStart [] = new int [20];			// elapsed begin time to run a command
+	int queueListTimeEnd [] = new int [20];				// elapsed begin time to end a command, a value of -2 means a desired sensor output must be present to stop
+	boolean queueListKillMotor[] = new boolean [20];	// whether to kill designated motors after the command is stopped or not
+	double queueListParam1 [] = new double [20];		// parameter 1 for queue item
+	double queueListParam2 [] = new double [20];		// parameter 2 for queue item
+	double queueListParam3 [] = new double [20];		// parameter 3 for queue item
 	
 	int queueElapsedTime = 0;				// current elapsed time for this command in code steps (50 steps in 1 second)
 	boolean queueIsRunning = false;			// if queue is enabled or not
 	
 	int queueMaxTime = -1;					// largest end time in queue
-	
+	int queueLength = 0;					// queue length
 	/**
 	 * Feeds the queue a new command. Commands can be assigned in any order.
 	 * @param action the action ID to feed
@@ -35,13 +37,14 @@ public class ActionQueue {
 	 * @param param3 the 3rd parameter
 	 */
 	public void queueFeed(Command action, int timeStart, int timeEnd, boolean killMotor, double param1, double param2, double param3) {
-		queueListActions[queueListActions.length - 1] = action;
-		queueListTimeStart[queueListTimeStart.length - 1] = timeStart;
-		queueListTimeEnd[queueListTimeEnd.length - 1] = timeEnd;
-		queueListKillMotor[queueListKillMotor.length - 1] = killMotor;
-		queueListParam1[queueListParam1.length - 1] = param1;
-		queueListParam2[queueListParam2.length - 1] = param2;
-		queueListParam3[queueListParam3.length - 1] = param3;
+		queueListActions[queueLength] = action;
+		queueListTimeStart[queueLength] = timeStart;
+		queueListTimeEnd[queueLength] = timeEnd;
+		queueListKillMotor[queueLength] = killMotor;
+		queueListParam1[queueLength] = param1;
+		queueListParam2[queueLength] = param2;
+		queueListParam3[queueLength] = param3;
+		queueLength ++;
 	}
 	
 	/**
@@ -50,7 +53,7 @@ public class ActionQueue {
 	 * @param timeStart the starting time of the command to kill
 	 */
 	public void queueDelete(Command action, int timeStart) {
-		for (int i = 0; i < queueListActions.length; i ++) {
+		for (int i = 0; i < queueLength; i ++) {
 			if (queueListActions[i] == action && queueListTimeStart[i] == timeStart) {
 				// The array will still contain a corpse even though the command is deleted
 				queueListActions[i] = Command.DEAD;
@@ -82,9 +85,9 @@ public class ActionQueue {
 	 */
 	public void queueRun() {
 		queueElapsedTime ++;
-		for (int i = 0; i < queueListActions.length; i ++) {
-			if (queueListTimeStart[i] > queueMaxTime) queueMaxTime = queueListTimeEnd[i];
-            if (queueListTimeStart[i] <= queueElapsedTime && queueElapsedTime <= queueListTimeEnd[i] && queueListActions[i] != Command.DEAD) {
+		for (int i = 0; i < queueLength; i ++) {
+			if (queueListTimeEnd[i] > queueMaxTime) queueMaxTime = queueListTimeEnd[i];
+            if (queueListTimeStart[i] <= queueElapsedTime && queueElapsedTime <= queueListTimeEnd[i]) {
                 // Run a certain action. Parameters will be shipped to the robot class along with the command.
                 switch (queueListActions[i]) {
                     case PREPARE_TURN:
@@ -105,11 +108,14 @@ public class ActionQueue {
 					case FOOT_WHEELS:
 						Robot.queueFootWheels(queueListTimeEnd[i],queueListParam1[i]);
 						break;
+					case PIVOT:
+						Robot.queuePivot(queueListTimeEnd[i],queueListParam1[i],queueListParam2[i]);
+						break;
 					default:
                         break;
                 }
 			}
 		}
-		if (queueMaxTime > queueMaxTime) queueStop();	// if the last command has finished, the queue can stop
+		if (queueMaxTime < queueElapsedTime) queueStop();	// if the last command has finished, the queue can stop
 	}
 }

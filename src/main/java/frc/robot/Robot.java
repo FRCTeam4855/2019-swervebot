@@ -204,8 +204,7 @@ public class Robot extends TimedRobot {
 			};
 
 			// Reference IDs for action queues
-			final int QUEUE_STRAIGHTLINE = 0;
-			final int QUEUE_LIFTLLEVEL3 = 0;
+			final int QUEUE_TEST = 0;
 			//=======================================
 
 			// End of variable definitions
@@ -235,8 +234,9 @@ public class Robot extends TimedRobot {
 				motorClimb.setSelectedSensorPosition(0);
 
 				// Feed action queues, they hunger for your command
-				actionQueues[QUEUE_STRAIGHTLINE].queueFeed(ActionQueue.Command.SWERVE,1,50,false,0,0,0);
-				actionQueues[QUEUE_STRAIGHTLINE].queueFeed(ActionQueue.Command.LIFT,40,-2,true,-3000,0,0);
+				actionQueues[QUEUE_TEST].queueFeed(ActionQueue.Command.PIVOT,1,50,false,.2,0,0);
+				actionQueues[QUEUE_TEST].queueFeed(ActionQueue.Command.SWERVE,50,100,false,.4,0,0);
+				actionQueues[QUEUE_TEST].queueFeed(ActionQueue.Command.PIVOT,100,150,false,-.2,0,0);
 			}
 			
 			/**
@@ -419,6 +419,9 @@ public class Robot extends TimedRobot {
             setAllPIDSetpoints(PIDdrive, 0);
           }
 
+					// Testing an action queue
+					if (controlWorking.getRawButtonPressed(BUTTON_SELECT)) actionQueues[QUEUE_TEST].queueStart();
+
 					// Foot wheel control
 					if (controlWorking.getRawAxis(2) >= CONTROL_FOOTWHEEL_DEADZONE) {
 						motorFootWheels.set(ControlMode.PercentOutput,controlWorking.getRawAxis(2));
@@ -486,7 +489,7 @@ public class Robot extends TimedRobot {
                       if (Math.signum(ahrs.getYaw()) != Math.signum(limelightGoalAngle)) limelightGoalAngle *= Math.signum(ahrs.getYaw());	// if the angle I want is negative and I'm positive then change the target to my angle
                     } else {
                       if (Math.signum(ahrs.getYaw()) != Math.signum(limelightGoalAngle)) limelightGoalAngle *= Math.signum(ahrs.getYaw());	// if the angle I want is negative and I'm positive then change the target to my angle
-                      limelightPIDAngle = -proportionalLoop(.0036,ahrs.getYaw(),limelightGoalAngle);	// find the motor speed required to reach my target angle
+                      limelightPIDAngle = -proportionalLoop(.002,ahrs.getYaw(),limelightGoalAngle);	// find the motor speed required to reach my target angle
                       if (-CONTROL_CAM_ANGLETHRESHOLD < limelightGoalAngle && limelightGoalAngle < CONTROL_CAM_ANGLETHRESHOLD) limelightPIDAngle = 0;	// if I'm close enough to the target angle then don't bother adjusting it
                       swerve(0,proportionalLoop(.0390,limelightX,0),limelightPIDAngle,false);	// actual move function
                     }
@@ -504,7 +507,7 @@ public class Robot extends TimedRobot {
                     if (limelightInputTimer > 0) {
                       limelightInputTimer --; 
                       swerve(.1,0,0,false);
-                    } else swerve(-proportionalLoop(.004,limelightArea,90),proportionalLoop(.02,limelightX,0),0,false);	// the .025 argument on the ROT corrects the natural drift of the robot
+                    } else swerve(-proportionalLoop(.004,limelightArea,90),proportionalLoop(.02,limelightX,0),.025,false);	// the .025 argument on the ROT corrects the natural drift of the robot
 
                     // Proceed to next step
                     if (limelightArea >= 70) {
@@ -636,6 +639,7 @@ public class Robot extends TimedRobot {
 				SmartDashboard.putNumber("ControllerID",singleDriverController);
 				SmartDashboard.putNumber("LiftEncoder",motorLift.getSelectedSensorPosition());
 				SmartDashboard.putNumber("ClimbEncoder",motorClimb.getSelectedSensorPosition());
+				SmartDashboard.putNumber("PivotEncoder",motorPivot.getSelectedSensorPosition());
 				SmartDashboard.putNumber("CIMCODER", encoderDistance.get());
 				SmartDashboard.putNumber("Gyro-Yaw", ahrs.getYaw());
 				SmartDashboard.putNumber("Encoder1:", encoderAngle[0].get());
@@ -861,5 +865,18 @@ public class Robot extends TimedRobot {
 		 */
 		public static void queueFootWheels(int timeEnd, double param1) {
 			motorFootWheels.set(ControlMode.PercentOutput,param1);
+		}
+
+		/**
+		 * The queue action for operating the pivot arm.
+		 * 
+		 * @param timeEnd the designated time for the command to end
+		 * @param param1 the first parameter, the value to set the pivot to
+		 * @param param2 the second parameter, whether to use a percent, 0, or an encoder value, 1
+		 */
+		public static void queuePivot(int timeEnd, double param1, double param2) {
+			ControlMode myControlMode = ControlMode.PercentOutput;
+			if (param2 == 1) myControlMode = ControlMode.Position;
+			motorPivot.set(myControlMode,param1);
 		}
   }
