@@ -7,7 +7,7 @@ package frc.robot;
 
 public class ActionQueue {
 	enum Command {
-		DEAD, PREPARE_TURN, SWERVE, LIFT, PIVOT, HATCH_INTAKE, CARGO_INTAKE, FOOT_WHEELS, FOOT_EXTEND, LIFT_STAGE;
+		DEAD, PREPARE_TURN, SWERVE, LIFT, PIVOT, HATCH_INTAKE, CARGO_INTAKE, FOOT_WHEELS, FOOT_EXTEND, LIFT_LEVEL;
 	}
 	
 	/*Command queueListActions [] = {					// action ID to perform
@@ -59,6 +59,7 @@ public class ActionQueue {
 				queueListActions[i] = Command.DEAD;
 				queueListTimeStart[i] = -1;
 				queueListTimeEnd[i] = -1;
+				queueLength --;
 				break;
 			}
 		}
@@ -108,9 +109,14 @@ public class ActionQueue {
 					case FOOT_WHEELS:
 						Robot.queueFootWheels(queueListTimeEnd[i],queueListParam1[i]);
 						break;
+					case FOOT_EXTEND:
+						Robot.queueFootExtend(queueListTimeEnd[i],queueListParam1[i],queueListParam2[i]);
+						break;
 					case PIVOT:
 						Robot.queuePivot(queueListTimeEnd[i],queueListParam1[i],queueListParam2[i]);
 						break;
+					case LIFT_LEVEL:
+						Robot.queueLiftLevel(queueListTimeEnd[i],queueListParam1[i]);
 					default:
                         break;
                 }
