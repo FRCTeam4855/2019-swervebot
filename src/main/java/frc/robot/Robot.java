@@ -54,6 +54,11 @@ public class Robot extends TimedRobot {
 			final double CONTROL_CAM_FWDPIDFWD = .004;					// the proportional value for forward motion during the forward phase
 			final double CONTROL_CAM_FWDAREATHRESHOLD = 90;			// the goal area during the forward phase, used in calculating forward speed
 			final double CONTROL_CAM_AREACLEARANCE = 10;				// the area that should be read from the limelight to safely say that we've reached the target
+			final boolean CONTROL_CAM_VALIDATION = true;				// whether to enable or disable limelight validating its outputs
+			final int CONTROL_CAM_VALIDATIONTIME = 3;						// every x number of steps limelight will validate limelight outputs to ensure that they're sane
+			final double CONTROL_CAM_VALIDXDIFF = 12;						// changes in the limelightX value under this number will be considered valid
+			final double CONTROL_CAM_VALIDYDIFF = 9;						// changes in the limelightY value under this number will be considered valid
+			final double CONTROL_CAM_VALIDAREADIFF = 3.5;				// changes in the limelightArea value under this number will be considered valid
 
 			final boolean INTERFACE_SINGLEDRIVER = false;  			// whether or not to enable or disable single driver input (press START to switch between controllers)
       //=======================================
@@ -95,16 +100,19 @@ public class Robot extends TimedRobot {
 			static double wheelSpeedActual1 = 0, wheelSpeedActual2 = 0, wheelSpeedActual3 = 0, wheelSpeedActual4 = 0;
 			static Timer wheelSpeedTimer = new Timer();
 			// For limelight
-			boolean limelightActive = true;																// true if the robot is collecting limelight data and tracking targets
-			boolean limelightSeeking = false;															// true if the limelight is currently seeking a target
-			int limelightPhase = 0;																				// phase for limelight correction, 0=off 1=angular 2=lateral 3=proceed
-			int limelightInterTimer = CONTROL_CAM_INTERRUPTRECOVERYTIME;	// the amount of remaining time for the camera to continue to move if it losts its target
+			boolean limelightActive = true;																						// true if the robot is collecting limelight data and tracking targets
+			boolean limelightSeeking = false;																					// true if the limelight is currently seeking a target
+			int limelightPhase = 0;																										// phase for limelight correction, 0=off 1=angular 2=lateral 3=proceed
+			int limelightInterTimer = CONTROL_CAM_INTERRUPTRECOVERYTIME;							// the amount of remaining time for the camera to continue to move if it losts its target
 			double limelightInterX = 0, limelightInterY = 0, limelightInterArea = 0;	// last read values from limelight before an interrupt occurred
+			double limelightValidX = 0, limelightValidY = 0, limelightValidArea = 0;	// the last validated values obtained from the limelight
+			int limelightValidTimer = CONTROL_CAM_VALIDATIONTIME;											// every x steps limelight values will be validated
+			boolean limelightInvalidValues = false;																		// whether invalid values were found from the limelight
 			//=======================================
 			
 			// LIMELIGHT + DATA TABLES
 
-			NetworkTable limelightTable = NetworkTableInstance.getDefault().getTable("limelight");
+			NetworkTable limelightTable = NetworkTableInstance.getDefault().getTable("limelight");	// creates the limelight table
 			NetworkTableEntry tx = limelightTable.getEntry("tx");										// the x offset from the crosshairs
 			NetworkTableEntry ty = limelightTable.getEntry("ty");										// the y offset from the crosshairs
 			NetworkTableEntry ta = limelightTable.getEntry("ta");										// the area (0-100) of the object
@@ -118,11 +126,11 @@ public class Robot extends TimedRobot {
 			NetworkTableEntry ledMode = limelightTable.getEntry("ledMode");					// 0 for on, 1 for off
 			NetworkTableEntry camMode = limelightTable.getEntry("camMode");					// 0 for main, 1 for driver view
 
-			double limelightX, limelightY, limelightArea, limelightWidth, limelightHeight;	// defined in limelightGather
+			double limelightX, limelightY, limelightArea, limelightWidth, limelightHeight;									// defined in limelightGather
 			double limelightEstAngle, limelightGoalAngle, limelightPIDAngle, limelightInitX, limelightROC;	// all used for auto calculations
-			boolean limelightTargetFound = false;
-			double limelightInputTimer = -1;
-			int limelightGuideMode;
+			boolean limelightTargetFound = false;																														// set to true if a target is being tracked
+			double limelightInputTimer = -1;																																// this timer acts as a buffer between phases and counts down, -1 when not active
+			int limelightGuideMode;																																					// there are 2 guidance modes, the second one is fatally broken so this is usually set to 0
 			//=======================================
 
 			// DEFINING HARDWARE
@@ -783,14 +791,38 @@ public class Robot extends TimedRobot {
 		 */
 		public void limelightGather() {
 			// Read Limelight data table values
-			limelightX = tx.getDouble(0.0);
-			limelightY = ty.getDouble(0.0);
-			limelightArea = ta.getDouble(0.0);
-			limelightWidth = thor.getDouble(0.0);
-			limelightHeight = tvert.getDouble(0.0);
+			if (limelightInvalidValues == false) {
+				limelightX = tx.getDouble(0.0);
+				limelightY = ty.getDouble(0.0);
+				limelightArea = ta.getDouble(0.0);
+				limelightWidth = thor.getDouble(0.0);
+				limelightHeight = tvert.getDouble(0.0);
+			}
 			double ltv = tv.getDouble(0.0);
 			limelightTargetFound = false;
-			if (ltv != 1.0) limelightTargetFound = false; else limelightTargetFound = true;
+			if (ltv != 1.0) limelightTargetFound = false; else limelightTargetFound = true;	// tv.getDouble wasn't working for some odd reason but this is a workaround
+
+			// Validate inputs, this should prevent jarring hits/flipping between 2 targets from impacting tracking
+			if (limelightTargetFound && limelightActive) {
+				limelightValidTimer --;
+				if (limelightValidTimer <= 0) {
+					if (limelightValidX == 0 && limelightValidY == 0 && limelightValidArea == 0) {
+						limelightValidX = limelightX;
+						limelightValidY = limelightY;
+						limelightValidArea = limelightArea;
+					} else {
+						double lxROC = Math.abs(limelightValidX - tx.getDouble(0.0)); 	// rate of change of the x value
+						double lyROC = Math.abs(limelightValidY - ty.getDouble(0.0));		// rate of change of the y value
+						double laROC = Math.abs(limelightValidArea - ta.getDouble(0.0));// rate of change on the area value
+						if (lxROC > CONTROL_CAM_VALIDXDIFF || lyROC > CONTROL_CAM_VALIDYDIFF || laROC > CONTROL_CAM_VALIDAREADIFF) {
+							// Validation failed
+							System.out.println("limelight values were just rejected");
+							limelightInvalidValues = true;
+						} else limelightInvalidValues = false;	// Validation succeeded
+					}
+					limelightValidTimer = CONTROL_CAM_VALIDATIONTIME;
+				}
+			}
 
 			// Find estimated distance
 			//double mathArea = limelightWidth * limelightHeight;
