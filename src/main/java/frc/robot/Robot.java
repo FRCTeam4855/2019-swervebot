@@ -33,20 +33,29 @@ import edu.wpi.first.networktables.NetworkTableInstance;
 
 public class Robot extends TimedRobot {
 			
-			// CONTROLLABLE CONSTANTS
+			// CONTROL CONSTANTS
 	
-			final double CONTROL_SPEEDREDUCTION = 2; 	  			// teleop drivetrain inputs are divided by this number when turbo is NOT engaged
-			final double CONTROL_DEADZONE = 0.21;       			// minimum value before joystick inputs will be considered
-      final double CONTROL_LIFT_DEADZONE = 0.3;   			// minimum value before joystick inputs will be considered on the lift
-      final double CONTROL_LIFT_PRECISION_FACTOR = 2; 	// lift input is divided by this value when in precision mode
-			final double CONTROL_INTAKE_DEADZONE = .15;				// minimum value before trigger inputs will be considered on intake wheels
-			final double CONTROL_PIVOT_DEADZONE = .06;				// minimum value before joystick inputs will be considered on the pivot arm
-			final double CONTROL_FOOTWHEEL_DEADZONE = .12;		// minimum value before trigger inputs will be considered on foot wheels
+			final double CONTROL_SPEEDREDUCTION = 2; 	  				// teleop drivetrain inputs are divided by this number when turbo is NOT engaged
+			final double CONTROL_DEADZONE = 0.21;       				// minimum value before joystick inputs will be considered
+      final double CONTROL_LIFT_DEADZONE = 0.3;   				// minimum value before joystick inputs will be considered on the lift
+      final double CONTROL_LIFT_PRECISION_FACTOR = 2; 		// lift input is divided by this value when in precision mode
+			final double CONTROL_INTAKE_DEADZONE = .15;					// minimum value before trigger inputs will be considered on intake wheels
+			final double CONTROL_PIVOT_DEADZONE = .06;					// minimum value before joystick inputs will be considered on the pivot arm
+			final double CONTROL_FOOTWHEEL_DEADZONE = .12;			// minimum value before trigger inputs will be considered on foot wheels
 
-			final double CONTROL_CAM_MOE = 5.2;	          		// margin of lateral error for that alignment process for the limelight
-			final double CONTROL_CAM_ANGLETHRESHOLD = 9;			// the limelight allows the robot to be +- this value off from its target angle and still call it good
-      
-      final boolean INTERFACE_SINGLEDRIVER = false;  		// whether or not to enable or disable single driver input (press START to switch between controllers)
+			final double CONTROL_CAM_MOE = 5.2;	          			// margin of lateral error for that alignment process for the limelight
+			final double CONTROL_CAM_ANGLETHRESHOLD = 9;				// the limelight allows the robot to be +- this value off from its target angle and still call it good
+			final boolean CONTROL_CAM_INTERRUPTRECOVERY = true;	// whether or not interruption recovery should be enabled or not
+			final int CONTROL_CAM_INTERRUPTRECOVERYTIME = 30;		// the maximum amount of time to give the camera to recover its reading on the target
+			final double CONTROL_CAM_STRAFEPIDANGLE = .002;			// the proportional value for adjusting the angle during the strafing phase
+			final double CONTROL_CAM_STRAFEPIDSTRAFE = .0390;		// the proportional value for strafing during the strafing phase
+			final double CONTROL_CAM_FWDANGLECORRECT = .025;		// the robot naturally drifts in this direction when approaching a target, this value corrects that drift
+			final double CONTROL_CAM_FWDPIDSTRAFE = .02;				// the proportional value for strafing during the forward phase
+			final double CONTROL_CAM_FWDPIDFWD = .004;					// the proportional value for forward motion during the forward phase
+			final double CONTROL_CAM_FWDAREATHRESHOLD = 90;			// the goal area during the forward phase, used in calculating forward speed
+			final double CONTROL_CAM_AREACLEARANCE = 10;				// the area that should be read from the limelight to safely say that we've reached the target
+
+			final boolean INTERFACE_SINGLEDRIVER = false;  			// whether or not to enable or disable single driver input (press START to switch between controllers)
       //=======================================
 			
 			// OTHER CONSTANTS
@@ -86,9 +95,11 @@ public class Robot extends TimedRobot {
 			static double wheelSpeedActual1 = 0, wheelSpeedActual2 = 0, wheelSpeedActual3 = 0, wheelSpeedActual4 = 0;
 			static Timer wheelSpeedTimer = new Timer();
 			// For limelight
-			boolean limelightActive = true;	// true if the robot is collecting limelight data and tracking targets
-			boolean limelightSeeking = false;	// true if the limelight is currently seeking a target
-			int limelightPhase = 0;	// phase for limelight correction, 0=off 1=angular 2=lateral 3=proceed
+			boolean limelightActive = true;																// true if the robot is collecting limelight data and tracking targets
+			boolean limelightSeeking = false;															// true if the limelight is currently seeking a target
+			int limelightPhase = 0;																				// phase for limelight correction, 0=off 1=angular 2=lateral 3=proceed
+			int limelightInterTimer = CONTROL_CAM_INTERRUPTRECOVERYTIME;	// the amount of remaining time for the camera to continue to move if it losts its target
+			double limelightInterX = 0, limelightInterY = 0, limelightInterArea = 0;	// last read values from limelight before an interrupt occurred
 			//=======================================
 			
 			// LIMELIGHT + DATA TABLES
@@ -448,10 +459,12 @@ public class Robot extends TimedRobot {
               limelightSeeking = true;
               limelightPhase = 1;
               limelightInputTimer = 50;
-              limelightGuideMode = 0;
+							limelightGuideMode = 0;
+							limelightInterTimer = CONTROL_CAM_INTERRUPTRECOVERYTIME;
+							limelightInterX = 0;limelightInterY = 0;limelightInterArea = 0;
               System.out.println("seeking initiated: mode 0 - multiphase guidance");
             }
-            if (controlWorking.getRawButtonPressed(BUTTON_START) && limelightTargetFound == true && limelightSeeking == false) {
+            /*if (controlWorking.getRawButtonPressed(BUTTON_START) && limelightTargetFound == true && limelightSeeking == false) {
               // Set seeking on
               limelightSeeking = true;
               limelightInputTimer = 25;
@@ -460,26 +473,16 @@ public class Robot extends TimedRobot {
               limelightGoalAngle = ahrs.getYaw();	// keep yaw at yaw for whole motion
               limelightPhase = 1;
               System.out.println("seeking initiated: mode 1 - forward correction guidance");
-            }
+            }*/
             // Track to a target if the target is still present
-            if (limelightSeeking == true && limelightTargetFound == true ) {
+            if (limelightSeeking == true && limelightTargetFound == true) {
               switch (limelightGuideMode) {
                 // Multiphase Guidance
                 // In this mode, limelightPhase defines what action is currently taking place. Each phase will pass when certain conditions are met.
                 case 0:
-                  // Phase 1: angle flush with the target (skipped for now)
-									// TODO remove the angle step entirely
+                  // Phase 1: line up laterally with the target
+
                   if (limelightPhase == 1) {
-                    //swerve(0,sign * Math.max(Math.abs(limelightX),CONTROL_CAM_CORRECTBOTTOM),0,false);*/
-										// Omitted for now
-
-                    limelightPhase = 2;
-                    limelightInputTimer = 50;
-                  }
-
-                  // Phase 2: line up laterally with the target
-
-                  if (limelightPhase == 2) {
 
                     if (limelightInputTimer > 0) {
                       limelightInputTimer --;	// elapse time to make sure the wheels are turned by the time I'm moving
@@ -489,25 +492,25 @@ public class Robot extends TimedRobot {
                       if (Math.signum(ahrs.getYaw()) != Math.signum(limelightGoalAngle)) limelightGoalAngle *= Math.signum(ahrs.getYaw());	// if the angle I want is negative and I'm positive then change the target to my angle
                     } else {
                       if (Math.signum(ahrs.getYaw()) != Math.signum(limelightGoalAngle)) limelightGoalAngle *= Math.signum(ahrs.getYaw());	// if the angle I want is negative and I'm positive then change the target to my angle
-                      limelightPIDAngle = -proportionalLoop(.002,ahrs.getYaw(),limelightGoalAngle);	// find the motor speed required to reach my target angle
+                      limelightPIDAngle = -proportionalLoop(CONTROL_CAM_STRAFEPIDANGLE,ahrs.getYaw(),limelightGoalAngle);	// find the motor speed required to reach my target angle
                       if (-CONTROL_CAM_ANGLETHRESHOLD < limelightGoalAngle && limelightGoalAngle < CONTROL_CAM_ANGLETHRESHOLD) limelightPIDAngle = 0;	// if I'm close enough to the target angle then don't bother adjusting it
-                      swerve(0,proportionalLoop(.0390,limelightX,0),limelightPIDAngle,false);	// actual move function
+                      swerve(0,proportionalLoop(CONTROL_CAM_STRAFEPIDSTRAFE,limelightX,0),limelightPIDAngle,false);	// actual move function
                     }
                     // Proceed to next step
                     if ((Math.abs(limelightX) < CONTROL_CAM_MOE)/* && (-CONTROL_CAM_ANGLETHRESHOLD + limelightGoalAngle < ahrs.getYaw() && ahrs.getYaw() < CONTROL_CAM_ANGLETHRESHOLD + limelightGoalAngle)*/) {	// if I'm laterally within margin of error and my angle is within threshold
-                      limelightPhase = 3;
+                      limelightPhase = 2;
                       limelightInputTimer = 50;
                     }
                   }
 
-                  // Phase 3: proceed towards target
+                  // Phase 2: proceed towards target
 
-                  if (limelightPhase == 3) {
+                  if (limelightPhase == 2) {
                     
                     if (limelightInputTimer > 0) {
                       limelightInputTimer --; 
                       swerve(.1,0,0,false);
-                    } else swerve(-proportionalLoop(.004,limelightArea,90),proportionalLoop(.02,limelightX,0),.025,false);	// the .025 argument on the ROT corrects the natural drift of the robot
+                    } else swerve(-proportionalLoop(CONTROL_CAM_FWDPIDFWD,limelightArea,CONTROL_CAM_FWDAREATHRESHOLD),proportionalLoop(CONTROL_CAM_FWDPIDSTRAFE,limelightX,0),CONTROL_CAM_FWDANGLECORRECT,false);
 
                     // Proceed to next step
                     if (limelightArea >= 70) {
@@ -567,9 +570,44 @@ public class Robot extends TimedRobot {
                     }
                   }
                   break;
-              }
+							}
+							if (CONTROL_CAM_INTERRUPTRECOVERY) {
+								limelightInterX = limelightX;
+								limelightInterY = limelightY;
+								limelightInterArea = limelightArea;
+								limelightInterTimer = CONTROL_CAM_INTERRUPTRECOVERYTIME;
+							}
             } else {
-              limelightKillSeeking();
+							// Interrupt recovery - if the target has been lost, continue to move in the general direction that the robot last remembers the target being in, until CONTROL_CAM_INTERRUPTRECOVERYTIME time has past
+							if (CONTROL_CAM_INTERRUPTRECOVERY == false) limelightKillSeeking(); else if (limelightSeeking == true && limelightTargetFound == false) {
+								switch (limelightPhase) {
+									case 1:
+										// Strafe to target, don't bother with the angular piece
+										swerve(0,proportionalLoop(CONTROL_CAM_STRAFEPIDSTRAFE * .85,limelightInterX,0),0,false);	// Strafing speed is reduced to 85% in case we're overshooting the target during this process on accident
+										break;
+									case 2:
+										// Move forward towards target, strafe just a little bit but not much
+										swerve(proportionalLoop(CONTROL_CAM_FWDPIDFWD * .85,limelightInterArea,CONTROL_CAM_FWDAREATHRESHOLD),proportionalLoop(CONTROL_CAM_FWDPIDSTRAFE * .75,limelightInterX,0),CONTROL_CAM_FWDANGLECORRECT,false);	// Forward speed is reduced to 85%
+										break;
+								}
+								// Experimental - switch to phase 2 if we deem that we're ready
+								// Specifically, this checks if the x val is already within a slightly broader MOE, OR if a certain amount of time has passed and we're within an even broader MOE (assuming we've moved far enough to compensate)
+								if (limelightPhase == 1 && ((Math.abs(limelightInterX) > CONTROL_CAM_MOE + 1.5 && Math.abs(limelightInterX) < CONTROL_CAM_MOE + 4 && limelightInterTimer / CONTROL_CAM_INTERRUPTRECOVERYTIME <= .5) || Math.abs(limelightInterX) <= CONTROL_CAM_MOE + 1.5)) {
+									limelightPhase = 2;
+								}
+								// Kill seeking if we're close enough to the target in phase 2 anyway
+								if (limelightPhase == 2 && limelightInterArea >= CONTROL_CAM_AREACLEARANCE) {
+									limelightKillSeeking();
+									System.out.println("seeking ended in recovery mode - target was presumably reached");
+								}
+
+								// If enough time has passed then abandon seeking
+								limelightInterTimer --;
+								if (limelightInterTimer <= 0) {
+									limelightKillSeeking();
+									System.out.println("seeking ended in recovery mode - target timed out");
+								}
+							} else limelightKillSeeking();
             }
             SmartDashboard.putNumber("limelightPhase:", limelightPhase);
           } else {
@@ -787,6 +825,8 @@ public class Robot extends TimedRobot {
 			limelightSeeking = false;
 			limelightPhase = 0;
 			limelightInputTimer = -1;
+			limelightInterTimer = CONTROL_CAM_INTERRUPTRECOVERYTIME;
+			limelightInterX = 0;limelightInterY = 0;limelightInterArea = 0;
 		}
 
 		/**
