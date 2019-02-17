@@ -383,11 +383,11 @@ public class Robot extends TimedRobot {
             if (!controlWorking.getRawButton(1) && !limelightSeeking) {
               driverOriented = true;
               jFwd = -controlWorking.getRawAxis(1);if (Math.abs(jFwd) < CONTROL_DEADZONE) jFwd = 0;
-              if (!controlWorking.getRawButton(5)) jFwd /= CONTROL_SPEEDREDUCTION;
+              if (!controlWorking.getRawButton(BUTTON_RB)) jFwd /= CONTROL_SPEEDREDUCTION;
               jStr = controlWorking.getRawAxis(0);if (Math.abs(jStr) < CONTROL_DEADZONE) jStr = 0;
-              if (!controlWorking.getRawButton(5)) jStr /= CONTROL_SPEEDREDUCTION;
+              if (!controlWorking.getRawButton(BUTTON_RB)) jStr /= CONTROL_SPEEDREDUCTION;
               jRcw = controlWorking.getRawAxis(4);if (Math.abs(jRcw) < CONTROL_DEADZONE) jRcw = 0;
-              if (!controlWorking.getRawButton(5)) jRcw /= CONTROL_SPEEDREDUCTION;
+              if (!controlWorking.getRawButton(BUTTON_RB)) jRcw /= CONTROL_SPEEDREDUCTION;
               if (reverseRotate) {jRcw=-jRcw;}
               swerve(jFwd,jStr,jRcw,driverOriented);
             } else {
@@ -444,7 +444,7 @@ public class Robot extends TimedRobot {
             ledMode.setNumber(0);	// turn leds on
             camMode.setNumber(0);	// set cam to low-contrast view
             limelightGather();
-            if (controlWorking.getRawButtonPressed(BUTTON_RB) && limelightTargetFound == true && limelightSeeking == false) {
+            if (controlWorking.getRawButtonPressed(BUTTON_B) && limelightTargetFound == true && limelightSeeking == false) {
               // Set seeking on
               limelightSeeking = true;
               limelightPhase = 1;
