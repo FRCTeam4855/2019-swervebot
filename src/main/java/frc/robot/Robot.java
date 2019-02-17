@@ -43,9 +43,9 @@ public class Robot extends TimedRobot {
 			final double CONTROL_INTAKE_DEADZONE = .15;				// minimum value before trigger inputs will be considered on intake wheels
 			final double CONTROL_PIVOT_DEADZONE = .06;				// minimum value before joystick inputs will be considered on the pivot arm
 			final double CONTROL_FOOTWHEEL_DEADZONE = .12;		// minimum value before trigger inputs will be considered on foot wheels
-			final double CONTROL_LIFTLEVEL_OFFSET = 2500;			// offset for lifting the lift to a level (level 1 position)
-			final double CONTROL_LIFTLEVEL_FACTOR = 6000;			// factor to multiply level-1 to
-
+			final static double CONTROL_LIFTLEVEL1 = 600;			// level 1 encoder value
+			final static double CONTROL_LIFTLEVEL2 = 8500;			// level 2 encoder value
+			final static double CONTROL_LIFTLEVEL3 = 15800;			// level 3 encoder value
 			final double CONTROL_CAM_MOE = 5.2;	          		// margin of lateral error for that alignment process for the limelight
 			final double CONTROL_CAM_ANGLETHRESHOLD = 9;			// the limelight allows the robot to be +- this value off from its target angle and still call it good
       
@@ -93,6 +93,8 @@ public class Robot extends TimedRobot {
 			boolean limelightActive = true;		// true if the robot is collecting limelight data and tracking targets
 			boolean limelightSeeking = false;	// true if the limelight is currently seeking a target
 			int limelightPhase = 0;						// phase for limelight correction, 0=off 1=angular 2=lateral 3=proceed
+			// Operator
+			double pivotSetpoint = 0;					// setpoint for the pivot
 			//=======================================
 			
 			// LIMELIGHT + DATA TABLES
@@ -172,7 +174,7 @@ public class Robot extends TimedRobot {
 			// Lift/Climber
 			static TalonSRX motorPivot = new TalonSRX(1);
 			static TalonSRX motorFootWheels = new TalonSRX(2);
-      static TalonSRX motorLift = new TalonSRX(3);
+			static TalonSRX motorLift = new TalonSRX(3);
 			static TalonSRX motorClimb = new TalonSRX(4);
 			static TalonSRX motorIntake = new TalonSRX(5);
 			//=======================================
@@ -241,6 +243,9 @@ public class Robot extends TimedRobot {
 				// Reset lift/climb encoders
 				motorLift.setSelectedSensorPosition(0);
 				motorClimb.setSelectedSensorPosition(0);
+				motorLift.setInverted(true);
+				motorPivot.setSelectedSensorPosition(0);
+				motorPivot.setInverted(true);
 
 				// Feed action queues, they hunger for your command
 				actionQueues[QUEUE_TEST].queueFeed(ActionQueue.Command.PIVOT,1,50,false,.2,0,0);
@@ -252,6 +257,11 @@ public class Robot extends TimedRobot {
 				//actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,36,44,false,.2,0,0);
 			}
 			
+			@Override
+			public void robotPeriodic() {
+				//motorLift.setSelectedSensorPosition(motorLift.getSelectedSensorPosition() * -1);	// values are always negative, should correct this
+			}
+
 			/**
 			 * This function is called periodically while disabled
 			 */
@@ -304,6 +314,9 @@ public class Robot extends TimedRobot {
 				resetAllWheels();
 
 				limelightGuideMode = 0;
+
+				pivotSetpoint = 0;motorPivot.setSelectedSensorPosition(0);
+				motorLift.setSelectedSensorPosition(0);
 			}
 			
 			/**
@@ -604,8 +617,10 @@ public class Robot extends TimedRobot {
 
 					// Run the lift
           if (Math.abs(controlWorking.getRawAxis(5)) >= CONTROL_LIFT_DEADZONE) {
-            if (controlWorking.getRawButton(4)) motorLift.set(ControlMode.PercentOutput,-controlWorking.getRawAxis(5) / CONTROL_LIFT_PRECISION_FACTOR); else motorLift.set(ControlMode.PercentOutput,-controlWorking.getRawAxis(5));
+            if (controlWorking.getRawButton(4)) motorLift.set(ControlMode.PercentOutput,controlWorking.getRawAxis(5) / CONTROL_LIFT_PRECISION_FACTOR); else motorLift.set(ControlMode.PercentOutput,controlWorking.getRawAxis(5));
 					} else motorLift.set(ControlMode.PercentOutput,0);
+					// Reset lift encoder
+					if (controlWorking.getRawButton(BUTTON_RSTICK)) motorLift.setSelectedSensorPosition(0);
 
 					// Run the climber
           if (controlWorking.getRawButton(1)) {
@@ -632,10 +647,22 @@ public class Robot extends TimedRobot {
 						motorIntake.set(ControlMode.PercentOutput,controlWorking.getRawAxis(3));
 					} else motorIntake.set(ControlMode.PercentOutput,0);
  
-					// Pivot control
-					if (Math.abs(controlWorking.getRawAxis(1)) >= CONTROL_PIVOT_DEADZONE) {
+					// OLD pivot control
+					/*if (Math.abs(controlWorking.getRawAxis(1)) >= CONTROL_PIVOT_DEADZONE) {
 						motorPivot.set(ControlMode.PercentOutput,controlWorking.getRawAxis(1) / 2);
-					} else motorPivot.set(ControlMode.PercentOutput,0);
+					} else motorPivot.set(ControlMode.PercentOutput,0);*/
+
+					if (Math.abs(controlWorking.getRawAxis(1)) >= CONTROL_PIVOT_DEADZONE) {
+						pivotSetpoint += controlWorking.getRawAxis(1) * 2;
+					}
+					motorPivot.set(ControlMode.Position,proportionalLoop(5, motorPivot.getSelectedSensorPosition() / 5, pivotSetpoint / 5));
+					//motorPivot.set(ControlMode.Position,-pivotSetpoint);
+
+					// Reset lift encoder
+					if (controlWorking.getRawButton(BUTTON_LSTICK)) {
+						motorPivot.setSelectedSensorPosition(0);
+						pivotSetpoint = 0;
+					}
 					
 					// Auto level control
 					if (controlWorking.getPOV() == 270) liftLevel(1);
@@ -660,6 +687,7 @@ public class Robot extends TimedRobot {
 				// Dashboard dump
 				SmartDashboard.putNumber("ControllerID",singleDriverController);
 				SmartDashboard.putNumber("LiftEncoder",motorLift.getSelectedSensorPosition());
+				SmartDashboard.putNumber("PivotSetpoint",pivotSetpoint);
 				SmartDashboard.putNumber("ClimbEncoder",motorClimb.getSelectedSensorPosition());
 				SmartDashboard.putNumber("PivotEncoder",motorPivot.getSelectedSensorPosition());
 				SmartDashboard.putNumber("CIMCODER", encoderDistance.get());
@@ -801,7 +829,7 @@ public class Robot extends TimedRobot {
 		 * @param currentSensor - whatever your current sensor value is
 		 * @param desiredSensor - whatever you want the sensor to become after change
 		 */
-		public double proportionalLoop(double p, double currentSensor, double desiredSensor) {
+		public static double proportionalLoop(double p, double currentSensor, double desiredSensor) {
 			return p * (currentSensor - desiredSensor);
 		}
 
@@ -821,9 +849,15 @@ public class Robot extends TimedRobot {
 		 */
 		public static boolean liftLevel(int level) {
 			if (1 > level || level > 3) return false;
-			level -= 1;
-			double liftSetpoint = -(1500 + 6000 * level);
-			motorLift.set(ControlMode.Position, liftSetpoint);
+			double liftSetpoint;
+			switch (level) {
+				case 1: liftSetpoint = CONTROL_LIFTLEVEL1; break;
+				case 2: liftSetpoint = CONTROL_LIFTLEVEL2; break;
+				case 3: liftSetpoint = CONTROL_LIFTLEVEL3; break;
+				default: liftSetpoint = 0; break;
+			}
+			
+			motorLift.set(ControlMode.PercentOutput, -proportionalLoop(.15,liftSetpoint / 75,motorLift.getSelectedSensorPosition() / 75));
 			return true;
 		}
 
