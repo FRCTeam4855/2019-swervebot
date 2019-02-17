@@ -310,6 +310,7 @@ public class Robot extends TimedRobot {
 				setAllPIDSetpoints(PIDdrive, 0);
 
 				limelightKillSeeking();
+				killQueues(actionQueues);
 				motorLift.setSelectedSensorPosition(0);
 				motorClimb.setSelectedSensorPosition(0);
 			}
@@ -391,11 +392,11 @@ public class Robot extends TimedRobot {
             if (!controlWorking.getRawButton(1) && !limelightSeeking) {
               driverOriented = true;
               jFwd = -controlWorking.getRawAxis(1);if (Math.abs(jFwd) < CONTROL_DEADZONE) jFwd = 0;
-              if (!controlWorking.getRawButton(5)) jFwd /= CONTROL_SPEEDREDUCTION;
+              if (!controlWorking.getRawButton(BUTTON_RB)) jFwd /= CONTROL_SPEEDREDUCTION;
               jStr = controlWorking.getRawAxis(0);if (Math.abs(jStr) < CONTROL_DEADZONE) jStr = 0;
-              if (!controlWorking.getRawButton(5)) jStr /= CONTROL_SPEEDREDUCTION;
+              if (!controlWorking.getRawButton(BUTTON_RB)) jStr /= CONTROL_SPEEDREDUCTION;
               jRcw = controlWorking.getRawAxis(4);if (Math.abs(jRcw) < CONTROL_DEADZONE) jRcw = 0;
-              if (!controlWorking.getRawButton(5)) jRcw /= CONTROL_SPEEDREDUCTION;
+              if (!controlWorking.getRawButton(BUTTON_RB)) jRcw /= CONTROL_SPEEDREDUCTION;
               if (reverseRotate) {jRcw=-jRcw;}
               swerve(jFwd,jStr,jRcw,driverOriented);
             } else {
@@ -452,7 +453,7 @@ public class Robot extends TimedRobot {
             ledMode.setNumber(0);	// turn leds on
             camMode.setNumber(0);	// set cam to low-contrast view
             limelightGather();
-            if (controlWorking.getRawButtonPressed(BUTTON_RB) && limelightTargetFound == true && limelightSeeking == false) {
+            if (controlWorking.getRawButtonPressed(BUTTON_B) && limelightTargetFound == true && limelightSeeking == false) {
               // Set seeking on
               limelightSeeking = true;
               limelightPhase = 1;
@@ -620,15 +621,17 @@ public class Robot extends TimedRobot {
 
 					// Intake wheel control
 					if (controlWorking.getRawAxis(2) >= CONTROL_INTAKE_DEADZONE) {
-						motorIntake.set(ControlMode.PercentOutput,controlWorking.getRawAxis(2));
+						motorIntake.set(ControlMode.PercentOutput,-controlWorking.getRawAxis(2));
 					} else if (controlWorking.getRawAxis(3) >= CONTROL_INTAKE_DEADZONE) {
-						motorIntake.set(ControlMode.PercentOutput,-controlWorking.getRawAxis(3));
+						motorIntake.set(ControlMode.PercentOutput,controlWorking.getRawAxis(3));
 					} else motorIntake.set(ControlMode.PercentOutput,0);
  
 					// Pivot control
 					if (Math.abs(controlWorking.getRawAxis(1)) >= CONTROL_PIVOT_DEADZONE) {
 						motorPivot.set(ControlMode.PercentOutput,controlWorking.getRawAxis(1) / 2);
 					} else motorPivot.set(ControlMode.PercentOutput,0);
+					
+					// Auto level control
 
 				}
 				if (controlOperator.getPOV() == 0)
@@ -805,11 +808,15 @@ public class Robot extends TimedRobot {
 		}
 
 		/**
-		 * Run the lift up to a specified level using PID inputs.
+		 * Run the lift up to a specified level using PID inputs. Returns false if an invalid value is given.
 		 * @param level the desired level for the lift between 1 and 3
 		 */
-		public void liftLevel(int level) {
-			// TODO calibrate lift to certain levels
+		public static boolean liftLevel(int level) {
+			if (1 > level || level > 3) return false;
+			level -= 1;
+			double liftSetpoint = -(2500 + 10500 * level);
+			motorLift.set(ControlMode.Position, liftSetpoint);
+			return true;
 		}
 
 		/**
@@ -819,6 +826,12 @@ public class Robot extends TimedRobot {
 		public void runQueues(ActionQueue queues[]) {
 			for (int i = 0; i < queues.length; i++) {
 				if (queues[i].queueIsRunning == true) queues[i].queueRun();
+			}
+		}
+
+		public void killQueues(ActionQueue queues[]) {
+			for (int i = 0; i < queues.length; i++) {
+				queues[i].queueStop();
 			}
 		}
 
@@ -883,8 +896,19 @@ public class Robot extends TimedRobot {
 		}
 
 		/**
+		 * The queue action for operating the foot extension.
+		 * @param timeEnd the designated time for the command to end
+		 * @param param1 the first parameter, the value to set the foot to
+		 * @param param2 the second parameter, whether to be a percent, 0, or a setpoint, 1
+		 */
+		public static void queueFootExtend(int timeEnd, double param1, double param2) {
+			ControlMode myControlMode = ControlMode.PercentOutput;
+			if (param2 == 1) myControlMode = ControlMode.Position;
+			motorClimb.set(myControlMode,param1);
+		}
+
+		/**
 		 * The queue action for operating the pivot arm.
-		 * 
 		 * @param timeEnd the designated time for the command to end
 		 * @param param1 the first parameter, the value to set the pivot to
 		 * @param param2 the second parameter, whether to use a percent, 0, or an encoder value, 1
@@ -893,5 +917,15 @@ public class Robot extends TimedRobot {
 			ControlMode myControlMode = ControlMode.PercentOutput;
 			if (param2 == 1) myControlMode = ControlMode.Position;
 			motorPivot.set(myControlMode,param1);
+		}
+		
+		/**
+		 * The queue action for raising the lift to a certain level
+		 * @param timeEnd the designated time for the command to end
+		 * @param param1 the first parameter, the level to set the lift to
+		 */
+		public static void queueLiftLevel(int timeEnd, double param1) {
+			int myLevel = (int) param1;	// converts param1 into an integer
+			liftLevel(myLevel);
 		}
   }
