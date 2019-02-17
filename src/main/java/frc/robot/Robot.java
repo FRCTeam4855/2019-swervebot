@@ -17,6 +17,7 @@ import com.ctre.phoenix.motorcontrol.can.TalonSRX;
 import com.kauailabs.navx.frc.AHRS;
 
 import edu.wpi.first.wpilibj.DoubleSolenoid;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.PIDController;
@@ -72,11 +73,12 @@ public class Robot extends TimedRobot {
 
 			// BEGINNING VARIABLES
 			
-      int wheelTune = 0; // Remembers what wheel we are tweaking in test mode
-      int singleDriverController = 0; // port number of controller to operate
-			boolean emergencyTank = false; // True if the robot is in emergency tank drive mode
-			boolean reverseRotate = false; // ?????
-			boolean driverOriented = true; // true = driver oriented, false = robot oriented
+      int wheelTune = 0; 								// Remembers what wheel we are tweaking in test mode
+      int singleDriverController = 0; 	// port number of controller to operate
+			boolean emergencyTank = false; 		// True if the robot is in emergency tank drive mode
+			boolean reverseRotate = false; 		// ?????
+			boolean driverOriented = true; 		// true = driver oriented, false = robot oriented
+			static double matchTime = 0;			// the calculated match time from the driver station
 			// All for calculating wheel speed/angle, if you need to read from a motor don't pull from these
 			static double a, b, c, d, max, temp, rads; 
 			static double encoderSetpointA, encoderSetpointB, encoderSetpointC, encoderSetpointD;
@@ -86,9 +88,9 @@ public class Robot extends TimedRobot {
 			static double wheelSpeedActual1 = 0, wheelSpeedActual2 = 0, wheelSpeedActual3 = 0, wheelSpeedActual4 = 0;
 			static Timer wheelSpeedTimer = new Timer();
 			// For limelight
-			boolean limelightActive = true;	// true if the robot is collecting limelight data and tracking targets
+			boolean limelightActive = true;		// true if the robot is collecting limelight data and tracking targets
 			boolean limelightSeeking = false;	// true if the limelight is currently seeking a target
-			int limelightPhase = 0;	// phase for limelight correction, 0=off 1=angular 2=lateral 3=proceed
+			int limelightPhase = 0;						// phase for limelight correction, 0=off 1=angular 2=lateral 3=proceed
 			//=======================================
 			
 			// LIMELIGHT + DATA TABLES
@@ -107,7 +109,7 @@ public class Robot extends TimedRobot {
 			NetworkTableEntry ledMode = limelightTable.getEntry("ledMode");					// 0 for on, 1 for off
 			NetworkTableEntry camMode = limelightTable.getEntry("camMode");					// 0 for main, 1 for driver view
 
-			double limelightX, limelightY, limelightArea, limelightWidth, limelightHeight;	// defined in limelightGather
+			double limelightX, limelightY, limelightArea, limelightWidth, limelightHeight;									// defined in limelightGather
 			double limelightEstAngle, limelightGoalAngle, limelightPIDAngle, limelightInitX, limelightROC;	// all used for auto calculations
 			boolean limelightTargetFound = false;
 			double limelightInputTimer = -1;
@@ -159,8 +161,12 @@ public class Robot extends TimedRobot {
 				new Spark(0)
       };
 			
+			// Pneumatic hatch intake
 			static DoubleSolenoid solenoidHatchIntake = new DoubleSolenoid(0,1);
 			
+			// Blinkin LED Driver
+			Blinkin leds = new Blinkin(new Spark(8));
+
 			// Lift/Climber
 			static TalonSRX motorPivot = new TalonSRX(1);
 			static TalonSRX motorFootWheels = new TalonSRX(2);
@@ -243,7 +249,9 @@ public class Robot extends TimedRobot {
 			 * This function is called periodically while disabled
 			 */
 			public void disabledPeriodic() {
-				// TODO idling LEDs here
+				if (matchTime == 0) leds.setLEDs(Blinkin.C1_AND_C2_GRADIENT);
+				if (1 < matchTime && matchTime <= 130) leds.setLEDs(Blinkin.STROBE_RED);
+				if (matchTime > 130) leds.setLEDs(Blinkin.RAINBOW_RAINBOWPALETTE);
 			}
 			
 			/**
@@ -264,6 +272,7 @@ public class Robot extends TimedRobot {
 			public void autonomousPeriodic() {
 				SmartDashboard.putNumber("Gyro", ahrs.getYaw());
 				SmartDashboard.putNumber("CIMCODER",encoderDistance.get());
+				matchTime = DriverStation.getInstance().getMatchTime();
 			}
 			
 			/**
@@ -632,6 +641,9 @@ public class Robot extends TimedRobot {
           if (singleDriverController == 0) singleDriverController = 1; else singleDriverController = 0;
         }
 				
+				// Record match time
+				matchTime = DriverStation.getInstance().getMatchTime();
+
 				// Run action queues
 				runQueues(actionQueues);
 				
@@ -651,6 +663,9 @@ public class Robot extends TimedRobot {
 				SmartDashboard.putBoolean("limelightSeeking",limelightSeeking);
 				SmartDashboard.putNumber("limelightGoalAngle",limelightGoalAngle);
 				SmartDashboard.putNumber("limelightROC",limelightROC);
+
+				// LED functions
+				if (limelightSeeking == false) leds.setLEDs(Blinkin.C1_LARSONSCAN); else leds.setLEDs(Blinkin.LIGHTCHASE_RED);	// rudimentary for now
 
 				// End UNIVERSAL FUNCTIONS
 			}
