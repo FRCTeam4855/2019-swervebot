@@ -43,6 +43,8 @@ public class Robot extends TimedRobot {
 			final double CONTROL_INTAKE_DEADZONE = .15;				// minimum value before trigger inputs will be considered on intake wheels
 			final double CONTROL_PIVOT_DEADZONE = .06;				// minimum value before joystick inputs will be considered on the pivot arm
 			final double CONTROL_FOOTWHEEL_DEADZONE = .12;		// minimum value before trigger inputs will be considered on foot wheels
+			final double CONTROL_LIFTLEVEL_OFFSET = 2500;			// offset for lifting the lift to a level (level 1 position)
+			final double CONTROL_LIFTLEVEL_FACTOR = 6000;			// factor to multiply level-1 to
 
 			final double CONTROL_CAM_MOE = 5.2;	          		// margin of lateral error for that alignment process for the limelight
 			final double CONTROL_CAM_ANGLETHRESHOLD = 9;			// the limelight allows the robot to be +- this value off from its target angle and still call it good
@@ -211,6 +213,7 @@ public class Robot extends TimedRobot {
 
 			// Reference IDs for action queues
 			final int QUEUE_TEST = 0;
+			final int QUEUE_PLACEHATCH = 1;
 			//=======================================
 
 			// End of variable definitions
@@ -243,6 +246,10 @@ public class Robot extends TimedRobot {
 				actionQueues[QUEUE_TEST].queueFeed(ActionQueue.Command.PIVOT,1,50,false,.2,0,0);
 				actionQueues[QUEUE_TEST].queueFeed(ActionQueue.Command.SWERVE,50,100,false,.4,0,0);
 				actionQueues[QUEUE_TEST].queueFeed(ActionQueue.Command.PIVOT,100,150,false,-.2,0,0);
+
+				actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,1,25,false,.26,0,0);
+				actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.HATCH_INTAKE,30,31,false,0,0,0);
+				//actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,36,44,false,.2,0,0);
 			}
 			
 			/**
@@ -383,7 +390,6 @@ public class Robot extends TimedRobot {
 			public void teleopPeriodic() {
 
         // Begin DRIVER CONTROL
-				// TODO redo controls to fit new control schematics
 				if (INTERFACE_SINGLEDRIVER == false || (INTERFACE_SINGLEDRIVER == true && singleDriverController == 0)) {
 					controlWorking = controlDriver;
 					
@@ -632,7 +638,9 @@ public class Robot extends TimedRobot {
 					} else motorPivot.set(ControlMode.PercentOutput,0);
 					
 					// Auto level control
-
+					if (controlWorking.getPOV() == 270) liftLevel(1);
+					if (controlWorking.getPOV() == 0) liftLevel(2);
+					if (controlWorking.getPOV() == 90) liftLevel(3);
 				}
 
 				// End OPERATOR DRIVING
@@ -796,6 +804,7 @@ public class Robot extends TimedRobot {
 		public double proportionalLoop(double p, double currentSensor, double desiredSensor) {
 			return p * (currentSensor - desiredSensor);
 		}
+
 		/**
 		 * Immediately turns off limelight seeking
 		 */
@@ -813,7 +822,7 @@ public class Robot extends TimedRobot {
 		public static boolean liftLevel(int level) {
 			if (1 > level || level > 3) return false;
 			level -= 1;
-			double liftSetpoint = -(2500 + 10500 * level);
+			double liftSetpoint = -(1500 + 6000 * level);
 			motorLift.set(ControlMode.Position, liftSetpoint);
 			return true;
 		}
