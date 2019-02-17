@@ -612,15 +612,17 @@ public class Robot extends TimedRobot {
 
 					// Intake wheel control
 					if (controlWorking.getRawAxis(2) >= CONTROL_INTAKE_DEADZONE) {
-						motorIntake.set(ControlMode.PercentOutput,controlWorking.getRawAxis(2));
+						motorIntake.set(ControlMode.PercentOutput,-controlWorking.getRawAxis(2));
 					} else if (controlWorking.getRawAxis(3) >= CONTROL_INTAKE_DEADZONE) {
-						motorIntake.set(ControlMode.PercentOutput,-controlWorking.getRawAxis(3));
+						motorIntake.set(ControlMode.PercentOutput,controlWorking.getRawAxis(3));
 					} else motorIntake.set(ControlMode.PercentOutput,0);
  
 					// Pivot control
 					if (Math.abs(controlWorking.getRawAxis(1)) >= CONTROL_PIVOT_DEADZONE) {
 						motorPivot.set(ControlMode.PercentOutput,controlWorking.getRawAxis(1) / 2);
 					} else motorPivot.set(ControlMode.PercentOutput,0);
+					
+					// Auto level control
 
 				}
 				if (controlOperator.getPOV() == 0)
