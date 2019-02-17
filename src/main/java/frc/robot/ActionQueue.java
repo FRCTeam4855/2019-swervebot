@@ -82,6 +82,14 @@ public class ActionQueue {
 	}
 	
 	/**
+	 * Returns if the queue is running or not.
+	 * @return true or false based on if the queue is running
+	 */
+	public boolean queueRunning() {
+		return queueIsRunning;
+	}
+
+	/**
 	 * This function runs through the fed commands, increases elapsed time, and runs robot commands.
 	 */
 	public void queueRun() {

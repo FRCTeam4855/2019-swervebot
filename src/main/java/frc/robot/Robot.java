@@ -301,6 +301,7 @@ public class Robot extends TimedRobot {
 				setAllPIDSetpoints(PIDdrive, 0);
 
 				limelightKillSeeking();
+				killQueues(actionQueues);
 				motorLift.setSelectedSensorPosition(0);
 				motorClimb.setSelectedSensorPosition(0);
 			}
@@ -808,6 +809,12 @@ public class Robot extends TimedRobot {
 		public void runQueues(ActionQueue queues[]) {
 			for (int i = 0; i < queues.length; i++) {
 				if (queues[i].queueIsRunning == true) queues[i].queueRun();
+			}
+		}
+
+		public void killQueues(ActionQueue queues[]) {
+			for (int i = 0; i < queues.length; i++) {
+				queues[i].queueStop();
 			}
 		}
 
