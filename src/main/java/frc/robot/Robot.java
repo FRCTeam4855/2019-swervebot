@@ -58,7 +58,7 @@ public class Robot extends TimedRobot {
 			final int CONTROL_CAM_VALIDATIONTIME = 3;						// every x number of steps limelight will validate limelight outputs to ensure that they're sane
 			final double CONTROL_CAM_VALIDXDIFF = 12;						// changes in the limelightX value under this number will be considered valid
 			final double CONTROL_CAM_VALIDYDIFF = 9;						// changes in the limelightY value under this number will be considered valid
-			final double CONTROL_CAM_VALIDAREADIFF = 3.5;				// changes in the limelightArea value under this number will be considered valid
+			final double CONTROL_CAM_VALIDAREADIFF = 2.75;			// changes in the limelightArea value under this number will be considered valid
 
 			final boolean INTERFACE_SINGLEDRIVER = false;  			// whether or not to enable or disable single driver input (press START to switch between controllers)
       //=======================================
