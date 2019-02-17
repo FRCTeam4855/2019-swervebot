@@ -634,7 +634,6 @@ public class Robot extends TimedRobot {
 					// Auto level control
 
 				}
-				if (controlOperator.getPOV() == 0)
 
 				// End OPERATOR DRIVING
 				// Begin UNIVERSAL FUNCTIONS
