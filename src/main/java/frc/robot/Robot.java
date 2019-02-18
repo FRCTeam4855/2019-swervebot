@@ -825,7 +825,7 @@ public class Robot extends TimedRobot {
 							limelightY = limelightValidY;
 							limelightArea = limelightValidArea;
 						} else {
-							limelightInvalidValues = false;	// Validation succeeded
+							limelightInvalidValues = false;	// Validation succeeded ABABABABABABABAB
 							limelightValidTimerTotal = CONTROL_CAM_VALIDTIMEOUT;
 						}
 					}
