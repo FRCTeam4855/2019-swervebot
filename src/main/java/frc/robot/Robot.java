@@ -663,9 +663,9 @@ public class Robot extends TimedRobot {
 					} else motorPivot.set(ControlMode.PercentOutput,0);*/
 
 					if (Math.abs(controlWorking.getRawAxis(1)) >= CONTROL_PIVOT_DEADZONE) {
-						pivotSetpoint += controlWorking.getRawAxis(1) * 2;
+						pivotSetpoint += controlWorking.getRawAxis(1) * 4;
 					}
-					motorPivot.set(ControlMode.Position,proportionalLoop(5, motorPivot.getSelectedSensorPosition() / 5, pivotSetpoint / 5));
+					motorPivot.set(ControlMode.PercentOutput,proportionalLoop(.005, motorPivot.getSelectedSensorPosition() / 5, pivotSetpoint / 5));
 					//motorPivot.set(ControlMode.Position,-pivotSetpoint);
 
 					// Reset lift encoder
