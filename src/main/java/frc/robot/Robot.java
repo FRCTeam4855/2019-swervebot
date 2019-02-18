@@ -90,11 +90,13 @@ public class Robot extends TimedRobot {
 			static double wheelSpeedActual1 = 0, wheelSpeedActual2 = 0, wheelSpeedActual3 = 0, wheelSpeedActual4 = 0;
 			static Timer wheelSpeedTimer = new Timer();
 			// For limelight
-			boolean limelightActive = true;		// true if the robot is collecting limelight data and tracking targets
-			boolean limelightSeeking = false;	// true if the limelight is currently seeking a target
-			int limelightPhase = 0;						// phase for limelight correction, 0=off 1=angular 2=lateral 3=proceed
+			boolean limelightActive = true;							// true if the robot is collecting limelight data and tracking targets
+			boolean limelightSeeking = false;						// true if the limelight is currently seeking a target
+			int limelightPhase = 0;											// phase for limelight correction, 0=off 1=angular 2=lateral 3=proceed
 			// Operator
-			double pivotSetpoint = 0;					// setpoint for the pivot
+			double pivotSetpoint = 0;										// setpoint for the pivot
+			static double liftSetpoint = 0;							// setpoint for the lift
+			static boolean liftSetpointControl = false;	// whether the lift is operating on setpoint control or not
 			//=======================================
 			
 			// LIMELIGHT + DATA TABLES
@@ -618,9 +620,17 @@ public class Robot extends TimedRobot {
 					// Run the lift
           if (Math.abs(controlWorking.getRawAxis(5)) >= CONTROL_LIFT_DEADZONE) {
             if (controlWorking.getRawButton(4)) motorLift.set(ControlMode.PercentOutput,controlWorking.getRawAxis(5) / CONTROL_LIFT_PRECISION_FACTOR); else motorLift.set(ControlMode.PercentOutput,controlWorking.getRawAxis(5));
-					} else motorLift.set(ControlMode.PercentOutput,0);
+						liftSetpointControl = false;
+					} else if (liftSetpointControl == false) motorLift.set(ControlMode.PercentOutput,0);
 					// Reset lift encoder
 					if (controlWorking.getRawButton(BUTTON_RSTICK)) motorLift.setSelectedSensorPosition(0);
+
+					// Auto level control
+					if (controlWorking.getPOV() == 270) liftLevel(1);
+					if (controlWorking.getPOV() == 0) liftLevel(2);
+					if (controlWorking.getPOV() == 90 || controlWorking.getPOV() == 45) liftLevel(3);
+
+					if (liftSetpointControl == true) motorLift.set(ControlMode.PercentOutput, -proportionalLoop(.15,liftSetpoint / 75,motorLift.getSelectedSensorPosition() / 75));
 
 					// Run the climber
           if (controlWorking.getRawButton(1)) {
@@ -663,11 +673,6 @@ public class Robot extends TimedRobot {
 						motorPivot.setSelectedSensorPosition(0);
 						pivotSetpoint = 0;
 					}
-					
-					// Auto level control
-					if (controlWorking.getPOV() == 270) liftLevel(1);
-					if (controlWorking.getPOV() == 0) liftLevel(2);
-					if (controlWorking.getPOV() == 90) liftLevel(3);
 				}
 
 				// End OPERATOR DRIVING
@@ -849,7 +854,6 @@ public class Robot extends TimedRobot {
 		 */
 		public static boolean liftLevel(int level) {
 			if (1 > level || level > 3) return false;
-			double liftSetpoint;
 			switch (level) {
 				case 1: liftSetpoint = CONTROL_LIFTLEVEL1; break;
 				case 2: liftSetpoint = CONTROL_LIFTLEVEL2; break;
@@ -857,7 +861,7 @@ public class Robot extends TimedRobot {
 				default: liftSetpoint = 0; break;
 			}
 			
-			motorLift.set(ControlMode.PercentOutput, -proportionalLoop(.15,liftSetpoint / 75,motorLift.getSelectedSensorPosition() / 75));
+			liftSetpointControl = true;
 			return true;
 		}
 
@@ -905,9 +909,13 @@ public class Robot extends TimedRobot {
 		 * @param param2 the second parameter, whether to be a percent, 0, or a setpoint, 1
 		 */
 		public static void queueLift(int timeEnd, double param1, double param2) {
-			ControlMode myControlMode = ControlMode.PercentOutput;
-			if (param2 == 1) myControlMode = ControlMode.Position;
-			motorLift.set(myControlMode,param1);
+			if (param2 == 1) {
+				liftSetpoint = param1;
+				liftSetpointControl = true;
+			} else {
+				motorLift.set(ControlMode.PercentOutput,param1);
+				liftSetpointControl = false;
+			}
 		}
 
 		/**

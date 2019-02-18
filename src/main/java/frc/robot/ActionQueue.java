@@ -10,11 +10,7 @@ public class ActionQueue {
 		DEAD, PREPARE_TURN, SWERVE, LIFT, PIVOT, HATCH_INTAKE, CARGO_INTAKE, FOOT_WHEELS, FOOT_EXTEND, LIFT_LEVEL;
 	}
 	
-	/*Command queueListActions [] = {					// action ID to perform
-		Command.DEAD
-	};*/
-	Command queueListActions [] = new Command [20];
-
+	Command queueListActions [] = new Command [20];		// action ID to perform
 	int queueListTimeStart [] = new int [20];			// elapsed begin time to run a command
 	int queueListTimeEnd [] = new int [20];				// elapsed begin time to end a command, a value of -2 means a desired sensor output must be present to stop
 	boolean queueListKillMotor[] = new boolean [20];	// whether to kill designated motors after the command is stopped or not
@@ -129,6 +125,7 @@ public class ActionQueue {
                         break;
                 }
 			}
+			
 		}
 		if (queueMaxTime < queueElapsedTime) queueStop();	// if the last command has finished, the queue can stop
 	}
