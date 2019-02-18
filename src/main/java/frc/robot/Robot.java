@@ -54,7 +54,7 @@ public class Robot extends TimedRobot {
 			final double CONTROL_CAM_FWDPIDFWD = .004;					// the proportional value for forward motion during the forward phase
 			final double CONTROL_CAM_FWDAREATHRESHOLD = 90;			// the goal area during the forward phase, used in calculating forward speed
 			final double CONTROL_CAM_AREACLEARANCE = 10;				// the area that should be read from the limelight to safely say that we've reached the target
-			final boolean CONTROL_CAM_VALIDATION = true;				// whether to enable or disable limelight validating its outputs
+			final boolean CONTROL_CAM_VALIDATION = false;				// whether to enable or disable limelight validating its outputs
 			final int CONTROL_CAM_VALIDATIONTIME = 3;						// every x number of steps limelight will validate limelight outputs to ensure that they're sane
 			final double CONTROL_CAM_VALIDXDIFF = 12;						// changes in the limelightX value under this number will be considered valid
 			final double CONTROL_CAM_VALIDYDIFF = 9;						// changes in the limelightY value under this number will be considered valid
@@ -464,7 +464,7 @@ public class Robot extends TimedRobot {
             ledMode.setNumber(0);	// turn leds on
             camMode.setNumber(0);	// set cam to low-contrast view
             limelightGather();
-            if (controlWorking.getRawButtonPressed(BUTTON_RB) && limelightTargetFound == true && limelightSeeking == false) {
+            if (controlWorking.getRawButtonPressed(BUTTON_B) && limelightTargetFound == true && limelightSeeking == false) {
               // Set seeking on
               limelightSeeking = true;
               limelightPhase = 1;
@@ -805,7 +805,7 @@ public class Robot extends TimedRobot {
 			if (ltv != 1.0) limelightTargetFound = false; else limelightTargetFound = true;	// tv.getDouble wasn't working for some odd reason but this is a workaround
 
 			// Validate inputs, this should prevent jarring hits/flipping between 2 targets from impacting tracking
-			if (limelightTargetFound && limelightActive) {
+			if (limelightTargetFound && limelightActive && CONTROL_CAM_VALIDATION == true) {
 				limelightValidTimer --;
 				if (limelightValidTimer <= 0) {
 					if (limelightValidX == 0 && limelightValidY == 0 && limelightValidArea == 0) {
