@@ -59,6 +59,7 @@ public class Robot extends TimedRobot {
 			final double CONTROL_CAM_VALIDXDIFF = 12;						// changes in the limelightX value under this number will be considered valid
 			final double CONTROL_CAM_VALIDYDIFF = 9;						// changes in the limelightY value under this number will be considered valid
 			final double CONTROL_CAM_VALIDAREADIFF = 3.5;				// changes in the limelightArea value under this number will be considered valid
+			final int CONTROL_CAM_VALIDTIMEOUT = 30;						// amount of time the robot will substitute invalid outputs for until it gives up and sticks with the outputs it sees
 
 			final boolean INTERFACE_SINGLEDRIVER = false;  			// whether or not to enable or disable single driver input (press START to switch between controllers)
       //=======================================
@@ -107,6 +108,7 @@ public class Robot extends TimedRobot {
 			double limelightInterX = 0, limelightInterY = 0, limelightInterArea = 0;	// last read values from limelight before an interrupt occurred
 			double limelightValidX = 0, limelightValidY = 0, limelightValidArea = 0;	// the last validated values obtained from the limelight
 			int limelightValidTimer = CONTROL_CAM_VALIDATIONTIME;											// every x steps limelight values will be validated
+			int limelightValidTimerTotal = CONTROL_CAM_VALIDTIMEOUT;									// robot will stop trying to validate values after this much time has passed
 			boolean limelightInvalidValues = false;																		// whether invalid values were found from the limelight
 			//=======================================
 			
@@ -814,11 +816,18 @@ public class Robot extends TimedRobot {
 						double lxROC = Math.abs(limelightValidX - tx.getDouble(0.0)); 	// rate of change of the x value
 						double lyROC = Math.abs(limelightValidY - ty.getDouble(0.0));		// rate of change of the y value
 						double laROC = Math.abs(limelightValidArea - ta.getDouble(0.0));// rate of change on the area value
-						if (lxROC > CONTROL_CAM_VALIDXDIFF || lyROC > CONTROL_CAM_VALIDYDIFF || laROC > CONTROL_CAM_VALIDAREADIFF) {
+						if ((lxROC > CONTROL_CAM_VALIDXDIFF || lyROC > CONTROL_CAM_VALIDYDIFF || laROC > CONTROL_CAM_VALIDAREADIFF) && limelightValidTimerTotal >= 0) {
 							// Validation failed
 							System.out.println("limelight values were just rejected");
 							limelightInvalidValues = true;
-						} else limelightInvalidValues = false;	// Validation succeeded
+							limelightValidTimerTotal --;
+							limelightX = limelightValidX;
+							limelightY = limelightValidY;
+							limelightArea = limelightValidArea;
+						} else {
+							limelightInvalidValues = false;	// Validation succeeded
+							limelightValidTimerTotal = CONTROL_CAM_VALIDTIMEOUT;
+						}
 					}
 					limelightValidTimer = CONTROL_CAM_VALIDATIONTIME;
 				}
