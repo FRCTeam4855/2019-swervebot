@@ -46,7 +46,7 @@ public class Robot extends TimedRobot {
 			final double CONTROL_FOOTWHEEL_DEADZONE = .12;		// minimum value before trigger inputs will be considered on foot wheels
 			final static double CONTROL_LIFTLEVEL1 = 600;			// level 1 encoder value
 			final static double CONTROL_LIFTLEVEL2 = 8500;		// level 2 encoder value
-			final static double CONTROL_LIFTLEVEL3 = 15800;		// level 3 encoder value
+			final static double CONTROL_LIFTLEVEL3 = 15000;		// level 3 encoder value
 			final double CONTROL_CAM_MOE = 5.2;	          		// margin of lateral error for that alignment process for the limelight
 			final double CONTROL_CAM_ANGLETHRESHOLD = 9;			// the limelight allows the robot to be +- this value off from its target angle and still call it good
       
@@ -266,20 +266,21 @@ public class Robot extends TimedRobot {
 				actionQueues[QUEUE_TEST].queueFeed(ActionQueue.Command.SWERVE,50,100,false,.4,0,0);
 				actionQueues[QUEUE_TEST].queueFeed(ActionQueue.Command.PIVOT,100,150,false,-.2,0,0);
 
-				actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PREPARE_TURN,1,24,false,.1,0,0);	// turn wheels forward
+				// Place hatch (almost functional)
 				actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,1,84,false,870,1,0);	// make sure pivot is parallel with ground
-				actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,25,55,false,.26,0,0);	// move towards target assuming we're lined up
-				actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.HATCH_INTAKE,75,76,false,0,0,0);	// release the hatch
-				actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,85,100,false,940,1,0);	// pivot down just a touch
-				actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,95,105,false,-.26,0,0);	// back up
+				actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,25,75,false,.48,0,0);	// move towards target assuming we're lined up
+				actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.HATCH_INTAKE,95,96,false,0,0,0);	// release the hatch
+				actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,130,180,false,940,1,0);	// pivot down just a touch
+				actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,150,180,false,-.38,0,0);	// back up
 				
-				actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.PREPARE_TURN,1,24,false,.1,0,0);	// turn wheels forward
+				// Grab hatch (not working)
+				actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.HATCH_INTAKE,1,2,false,0,0,0);	// make sure intake is open
 				actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.PIVOT,1,41,false,880,1,0);	// make sure pivot is parallel with ground
-				actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.SWERVE,25,38,false,.26,0,0);	// push forward a bit
-				actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.HATCH_INTAKE,40,41,false,1,0,0);	// assuming we've speared already, grab the hatch
-				actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.PIVOT,45,85,false,780,1,0);	// pull hatch out
-				actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.LIFT,55,75,false,.12,0,0);	// lift up just a bit
-				actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.SWERVE,70,90,false,-.26,0,0);	// back up
+				actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.SWERVE,30,60,false,.48,0,0);	// push forward a bit
+				actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.HATCH_INTAKE,70,71,false,1,0,0);	// assuming we've speared already, grab the hatch
+				actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.PIVOT,95,115,false,810,1,0);	// pull hatch out
+				actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.LIFT,110,140,false,.12,0,0);	// lift up just a bit
+				actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.SWERVE,145,175,false,-.48,0,0);	// back up
 			}
 
 			/**
@@ -314,16 +315,18 @@ public class Robot extends TimedRobot {
 			}
 			
 			/**
-			 * This function is called when teleop begins
+			 * This function is called when
+			 *  teleop begins
 			 */
 			public void teleopInit() {
-				/*if (PIDautoAngle[0].isEnabled()) {
+				// !!!! NOT JUNK DON'T REMOVE !!!
+				if (PIDautoAngle[0].isEnabled()) {
 					setAllPIDControllers(PIDautoAngle, false);
 				}
 				if (PIDautoDistance[0].isEnabled()) {
 					setAllPIDControllers(PIDautoDistance, false);
 				}
-				setAllPIDControllers(PIDdrive, true); old auto PIDs, probably junk */
+				setAllPIDControllers(PIDdrive, true);
 				
 				encoderDistance.reset();
 				
@@ -696,6 +699,10 @@ public class Robot extends TimedRobot {
 					if (controlWorking.getRawButton(BUTTON_SELECT)) {
 						actionQueues[QUEUE_PLACEHATCH].queueStart();
 					}
+					// Auto hatch grab
+					if (controlWorking.getRawButton(BUTTON_START)) {
+						actionQueues[QUEUE_GRABHATCH].queueStart();
+					}
 				}
 
 				// End OPERATOR DRIVING
@@ -894,7 +901,9 @@ public class Robot extends TimedRobot {
 		 * @param setpoint the raw desired setpoint, no subtractions or changes
 		 */
 		public static void setPivot(double setpoint) {
-			motorPivot.set(ControlMode.PercentOutput,proportionalLoop(.025, motorPivot.getSelectedSensorPosition() / 5, setpoint / 5));
+			double p;
+			if (motorPivot.getSelectedSensorPosition() > 0 && motorPivot.getSelectedSensorPosition() < 200) p = .015; else p = .025;
+			motorPivot.set(ControlMode.PercentOutput,proportionalLoop(p, motorPivot.getSelectedSensorPosition() / 5, setpoint / 5));
 		}
 		
 		/**
@@ -965,7 +974,7 @@ public class Robot extends TimedRobot {
 		 * @param param1 the first parameter, either opening the intake or closing it (0 or 1)
 		 */
 		public static void queueHatchIntake(int timeEnd, double param1) {
-			if (param1 == 0) solenoidHatchIntake.set(DoubleSolenoid.Value.kForward); else solenoidHatchIntake.set(DoubleSolenoid.Value.kReverse);
+			if (param1 == 0) solenoidHatchIntake.set(DoubleSolenoid.Value.kForward); else if (param1 == 1) solenoidHatchIntake.set(DoubleSolenoid.Value.kReverse);
 		}
 
 		/**
