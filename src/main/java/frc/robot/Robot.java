@@ -60,11 +60,13 @@ public class Robot extends TimedRobot {
 	final double CONTROL_CAM_FWDAREATHRESHOLD = 90;			// the goal area during the forward phase, used in calculating forward speed
 	final double CONTROL_CAM_AREACLEARANCE = 5;					// the area that should be read from the limelight to safely say that we've reached the target
 	final boolean CONTROL_CAM_VALIDATION = false;				// whether to enable or disable limelight validating its outputs
-	final int CONTROL_CAM_VALIDATIONTIME = 3;						// every x number of steps limelight will validate limelight outputs to ensure that they're sane
-	final double CONTROL_CAM_VALIDXDIFF = 12;						// changes in the limelightX value under this number will be considered valid
-	final double CONTROL_CAM_VALIDYDIFF = 9;						// changes in the limelightY value under this number will be considered valid
-	final double CONTROL_CAM_VALIDAREADIFF = 3.5;				// changes in the limelightArea value under this number will be considered valid
-	final int CONTROL_CAM_VALIDTIMEOUT = 30;						// amount of time the robot will substitute invalid outputs for until it gives up and sticks with the outputs it sees
+	final int CONTROL_CAM_VALIDATIONTIME = 2;						// every x number of steps limelight will validate limelight outputs to ensure that they're sane
+	final double CONTROL_CAM_VALIDXSCORE = .15;					// the coefficient used to determine the validation score of limelightX
+	final double CONTROL_CAM_VALIDYSCORE = .6;					// the coefficient used to determine the validation score of limelightY
+	final double CONTROL_CAM_VALIDASCORE = .9;					// the coefficient used to determine the validation score of limelightArea
+	final double CONTROL_CAM_VALIDPSCORE = 2; 					// the coefficient used to determine the validation score of limelightProp
+	final int CONTROL_CAM_VALIDTIMEOUT = 20;						// amount of time the robot will substitute invalid outputs for until it gives up and sticks with the outputs it sees
+	final double CONTROL_CAM_VALIDSCORETHRESHOLD = 12;	// maximum acceptable validation score
 
 	final boolean INTERFACE_SINGLEDRIVER = false;  			// whether or not to enable or disable single driver input (press START to switch between controllers)
 	//=======================================
@@ -107,15 +109,15 @@ public class Robot extends TimedRobot {
 	static double wheelSpeedActual1 = 0, wheelSpeedActual2 = 0, wheelSpeedActual3 = 0, wheelSpeedActual4 = 0;
 	static Timer wheelSpeedTimer = new Timer();
 	// For limelight
-	boolean limelightActive = true;																						// true if the robot is collecting limelight data and tracking targets
-	boolean limelightSeeking = false;																					// true if the limelight is currently seeking a target
-	int limelightPhase = 0;																										// phase for limelight correction, 0=off 1=angular 2=lateral 3=proceed
-	int limelightInterTimer = CONTROL_CAM_INTERRUPTRECOVERYTIME;							// the amount of remaining time for the camera to continue to move if it losts its target
-	double limelightInterX = 0, limelightInterY = 0, limelightInterArea = 0;	// last read values from limelight before an interrupt occurred
-	double limelightValidX = 0, limelightValidY = 0, limelightValidArea = 0;	// the last validated values obtained from the limelight
-	int limelightValidTimer = CONTROL_CAM_VALIDATIONTIME;											// every x steps limelight values will be validated
-	int limelightValidTimerTotal = CONTROL_CAM_VALIDTIMEOUT;									// robot will stop trying to validate values after this much time has passed since a rejection
-	boolean limelightInvalidValues = false;																		// whether invalid values were found from the limelight
+	boolean limelightActive = true;																																		// true if the robot is collecting limelight data and tracking targets
+	boolean limelightSeeking = false;																																	// true if the limelight is currently seeking a target
+	int limelightPhase = 0;																																						// phase for limelight correction, 0=off 1=angular 2=lateral 3=proceed
+	int limelightInterTimer = CONTROL_CAM_INTERRUPTRECOVERYTIME;																			// the amount of remaining time for the camera to continue to move if it losts its target
+	double limelightInterX = 0, limelightInterY = 0, limelightInterArea = 0;													// last read values from limelight before an interrupt occurred
+	double limelightValidX = 0, limelightValidY = 0, limelightValidArea = 0, limelightValidProp = 0;	// the last validated values obtained from the limelight
+	int limelightValidTimer = CONTROL_CAM_VALIDATIONTIME;																							// every x steps limelight values will be validated
+	int limelightValidTimerTotal = CONTROL_CAM_VALIDTIMEOUT;																					// robot will stop trying to validate values after this much time has passed since a rejection
+	boolean limelightInvalidValues = false;																														// whether invalid values were found from the limelight
 	// Operator
 	static double pivotSetpoint = 0;						// setpoint for the pivot
 	static double liftSetpoint = 0;							// setpoint for the lift
@@ -140,7 +142,7 @@ public class Robot extends TimedRobot {
 	NetworkTableEntry camMode = limelightTable.getEntry("camMode");					// 0 for main, 1 for driver view
 
 	double limelightX, limelightY, limelightArea, limelightWidth, limelightHeight;									// defined in limelightGather
-	double limelightEstAngle, limelightGoalAngle, limelightPIDAngle, limelightInitX, limelightROC;	// all used for auto calculations
+	double limelightEstAngle, limelightGoalAngle, limelightPIDAngle, limelightInitX, limelightROC, limelightProp;	// all used for auto calculations
 	boolean limelightTargetFound = false;																														// set to true if a target is being tracked
 	double limelightInputTimer = -1;																																// this timer acts as a buffer between phases and counts down, -1 when not active
 	int limelightGuideMode;																																					// there are 2 guidance modes, the second one is fatally broken so this is usually set to 0
@@ -480,7 +482,7 @@ public class Robot extends TimedRobot {
 					// Set seeking on
 					limelightSeeking = true;
 					limelightPhase = 1;
-					limelightInputTimer = 50;
+					limelightInputTimer = 20;
 					limelightGuideMode = 0;
 					limelightInterTimer = CONTROL_CAM_INTERRUPTRECOVERYTIME;
 					limelightInterX = 0;limelightInterY = 0;limelightInterArea = 0;
@@ -521,7 +523,7 @@ public class Robot extends TimedRobot {
 								// Proceed to next step
 								if ((Math.abs(limelightX) < CONTROL_CAM_MOE)/* && (-CONTROL_CAM_ANGLETHRESHOLD + limelightGoalAngle < ahrs.getYaw() && ahrs.getYaw() < CONTROL_CAM_ANGLETHRESHOLD + limelightGoalAngle)*/) {	// if I'm laterally within margin of error and my angle is within threshold
 									limelightPhase = 2;
-									limelightInputTimer = 50;
+									limelightInputTimer = 20;
 								}
 							}
 
@@ -921,6 +923,7 @@ public class Robot extends TimedRobot {
 			limelightArea = ta.getDouble(0.0);
 			limelightWidth = thor.getDouble(0.0);
 			limelightHeight = tvert.getDouble(0.0);
+			limelightProp = limelightWidth / limelightHeight;
 		}
 		double ltv = tv.getDouble(0.0);
 		limelightTargetFound = false;
@@ -930,22 +933,29 @@ public class Robot extends TimedRobot {
 		if (limelightTargetFound && limelightActive && CONTROL_CAM_VALIDATION == true) {
 			limelightValidTimer --;
 			if (limelightValidTimer <= 0) {
+				// Designated time has passed, begin validating
 				if (limelightValidX == 0 && limelightValidY == 0 && limelightValidArea == 0) {
+					// Valid values haven't been assigned yet
 					limelightValidX = limelightX;
 					limelightValidY = limelightY;
 					limelightValidArea = limelightArea;
 				} else {
-					double lxROC = Math.abs(limelightValidX - tx.getDouble(0.0)); 	// rate of change of the x value
-					double lyROC = Math.abs(limelightValidY - ty.getDouble(0.0));		// rate of change of the y value
-					double laROC = Math.abs(limelightValidArea - ta.getDouble(0.0));// rate of change on the area value
-					if ((lxROC > CONTROL_CAM_VALIDXDIFF || lyROC > CONTROL_CAM_VALIDYDIFF || laROC > CONTROL_CAM_VALIDAREADIFF) && limelightValidTimerTotal >= 0) {
-						// Validation failed
+					// Check if values are valid by scoring each change
+					double lxROC = Math.abs(limelightValidX - tx.getDouble(0.0)) * .15; 	// rate of change of the x value
+					double lyROC = Math.abs(limelightValidY - ty.getDouble(0.0)) * .6;		// rate of change of the y value
+					double laROC = Math.abs(limelightValidArea - ta.getDouble(0.0)) * .9;// rate of change on the area value
+					double lpROC = Math.abs(limelightValidProp - thor.getDouble(0.0) / tvert.getDouble(0.0) * 2);	// rate of change on the prop value
+					double lScoreSum = lxROC + lyROC + laROC + lpROC;
+					SmartDashboard.putNumber("limelightValidScore",lScoreSum);
+					if ((lScoreSum > CONTROL_CAM_VALIDSCORETHRESHOLD) && limelightValidTimerTotal >= 0) {
+						// Validation failed, cumulative score was greater than the threshold
 						System.out.println("limelight values were just rejected");
 						limelightInvalidValues = true;
 						limelightValidTimerTotal --;
 						limelightX = limelightValidX;
 						limelightY = limelightValidY;
 						limelightArea = limelightValidArea;
+						limelightProp = limelightValidProp;
 					} else {
 						limelightInvalidValues = false;	// Validation succeeded ABABABABABABABAB
 						limelightValidTimerTotal = CONTROL_CAM_VALIDTIMEOUT;
@@ -953,12 +963,17 @@ public class Robot extends TimedRobot {
 				}
 				limelightValidTimer = CONTROL_CAM_VALIDATIONTIME;
 			}
+		} else if (limelightTargetFound == false && CONTROL_CAM_VALIDATION == true)  {
+			// Zero the valid values
+			limelightValidX = limelightX;
+			limelightValidY = limelightY;
+			limelightValidArea = limelightArea;
 		}
 
 		// Find estimated distance
 		//double mathArea = limelightWidth * limelightHeight;
 		//limelightEstDistance = 0.0256 * Math.pow(mathArea,4) - 0.4883 * Math.pow(mathArea,3) + 3.4146 * Math.pow(mathArea,2) - 10.631 * mathArea + 13.509;
-		double limelightProp = limelightWidth / limelightHeight;
+		
 		limelightEstAngle =  -18.1603 * Math.pow(limelightProp,2) + 19.7507 * limelightProp + 62;	// very guess-work-y and not reliable
 
 		// Write Limelight data table values to the dashboard
