@@ -6,6 +6,7 @@
 package frc.robot;
 
 import edu.wpi.first.wpilibj.Spark;
+import edu.wpi.first.wpilibj.Servo;
 
 public class Blinkin {
     // Assign ALL light patterns to constants, oh buddy this is gonna be fun
@@ -111,10 +112,11 @@ public class Blinkin {
     final static double DARK_GRAY = .97;
     final static double BLACK = .99;
 
-    double pattern = C1_AND_C2_GRADIENT;
+    double pattern = C1_AND_C2_SINELON;
     Spark leds;
+    //Servo leds;
 
-    public Blinkin(Spark s) {
+    public Blinkin(/*Servo*/Spark s) {
         leds = s;
     }
 

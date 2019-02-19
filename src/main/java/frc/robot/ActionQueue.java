@@ -5,6 +5,8 @@
 
 package frc.robot;
 
+import com.ctre.phoenix.motorcontrol.ControlMode;
+
 public class ActionQueue {
 	enum Command {
 		DEAD, PREPARE_TURN, SWERVE, LIFT, PIVOT, HATCH_INTAKE, CARGO_INTAKE, FOOT_WHEELS, FOOT_EXTEND, LIFT_LEVEL;
@@ -125,7 +127,22 @@ public class ActionQueue {
                         break;
                 }
 			}
-			
+			if (queueElapsedTime == queueListTimeEnd[i] + 1 && queueListKillMotor[i]) {
+				// Kill the corresponding motor if applicable
+				switch (queueListActions[i]) {
+					case CARGO_INTAKE:
+						Robot.motorIntake.set(ControlMode.PercentOutput,0);
+						break;
+					case FOOT_WHEELS:
+						Robot.motorFootWheels.set(ControlMode.PercentOutput,0);
+						break;
+					case PIVOT:
+						// Be careful with this one as it will override any setpoint input given
+						Robot.motorPivot.set(ControlMode.PercentOutput,0);
+					default:
+						break;
+				}
+			}
 		}
 		if (queueMaxTime < queueElapsedTime) queueStop();	// if the last command has finished, the queue can stop
 	}

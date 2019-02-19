@@ -22,6 +22,7 @@ import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.PIDController;
 import edu.wpi.first.wpilibj.SPI;
+import edu.wpi.first.wpilibj.Servo;
 import edu.wpi.first.wpilibj.Spark;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
@@ -44,8 +45,8 @@ public class Robot extends TimedRobot {
 			final double CONTROL_PIVOT_DEADZONE = .06;				// minimum value before joystick inputs will be considered on the pivot arm
 			final double CONTROL_FOOTWHEEL_DEADZONE = .12;		// minimum value before trigger inputs will be considered on foot wheels
 			final static double CONTROL_LIFTLEVEL1 = 600;			// level 1 encoder value
-			final static double CONTROL_LIFTLEVEL2 = 8500;			// level 2 encoder value
-			final static double CONTROL_LIFTLEVEL3 = 15800;			// level 3 encoder value
+			final static double CONTROL_LIFTLEVEL2 = 8500;		// level 2 encoder value
+			final static double CONTROL_LIFTLEVEL3 = 15800;		// level 3 encoder value
 			final double CONTROL_CAM_MOE = 5.2;	          		// margin of lateral error for that alignment process for the limelight
 			final double CONTROL_CAM_ANGLETHRESHOLD = 9;			// the limelight allows the robot to be +- this value off from its target angle and still call it good
       
@@ -94,7 +95,7 @@ public class Robot extends TimedRobot {
 			boolean limelightSeeking = false;						// true if the limelight is currently seeking a target
 			int limelightPhase = 0;											// phase for limelight correction, 0=off 1=angular 2=lateral 3=proceed
 			// Operator
-			double pivotSetpoint = 0;										// setpoint for the pivot
+			static double pivotSetpoint = 0;						// setpoint for the pivot
 			static double liftSetpoint = 0;							// setpoint for the lift
 			static boolean liftSetpointControl = false;	// whether the lift is operating on setpoint control or not
 			//=======================================
@@ -171,7 +172,13 @@ public class Robot extends TimedRobot {
 			static DoubleSolenoid solenoidHatchIntake = new DoubleSolenoid(0,1);
 			
 			// Blinkin LED Driver
-			Blinkin leds = new Blinkin(new Spark(8));
+
+			// option 1
+			Spark sparkLeds = new Spark(10);
+			Blinkin leds = new Blinkin(sparkLeds);
+			
+			// option 2
+			// Blinkin leds = new Blinkin(new Servo(0));
 
 			// Lift/Climber
 			static TalonSRX motorPivot = new TalonSRX(1);
@@ -212,12 +219,17 @@ public class Robot extends TimedRobot {
 			// Action queues
 			ActionQueue actionQueues[] = {
 				new ActionQueue(),
+				new ActionQueue(),
+				new ActionQueue(),
 				new ActionQueue()
 			};
 
 			// Reference IDs for action queues
 			final int QUEUE_TEST = 0;
 			final int QUEUE_PLACEHATCH = 1;
+			final int QUEUE_CLIMB = 2;
+			final int QUEUE_GRABHATCH = 3;
+			final int QUEUE_ = 4;
 			//=======================================
 
 			// End of variable definitions
@@ -244,24 +256,30 @@ public class Robot extends TimedRobot {
 
 				// Reset lift/climb encoders
 				motorLift.setSelectedSensorPosition(0);
-				motorClimb.setSelectedSensorPosition(0);
 				motorLift.setInverted(true);
 				motorPivot.setSelectedSensorPosition(0);
 				motorPivot.setInverted(true);
+				motorClimb.setSelectedSensorPosition(0);
 
 				// Feed action queues, they hunger for your command
 				actionQueues[QUEUE_TEST].queueFeed(ActionQueue.Command.PIVOT,1,50,false,.2,0,0);
 				actionQueues[QUEUE_TEST].queueFeed(ActionQueue.Command.SWERVE,50,100,false,.4,0,0);
 				actionQueues[QUEUE_TEST].queueFeed(ActionQueue.Command.PIVOT,100,150,false,-.2,0,0);
 
-				actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,1,25,false,.26,0,0);
-				actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.HATCH_INTAKE,30,31,false,0,0,0);
-				//actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,36,44,false,.2,0,0);
-			}
-			
-			@Override
-			public void robotPeriodic() {
-				//motorLift.setSelectedSensorPosition(motorLift.getSelectedSensorPosition() * -1);	// values are always negative, should correct this
+				actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PREPARE_TURN,1,24,false,.1,0,0);	// turn wheels forward
+				actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,1,84,false,870,1,0);	// make sure pivot is parallel with ground
+				actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,25,55,false,.26,0,0);	// move towards target assuming we're lined up
+				actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.HATCH_INTAKE,75,76,false,0,0,0);	// release the hatch
+				actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,85,100,false,940,1,0);	// pivot down just a touch
+				actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,95,105,false,-.26,0,0);	// back up
+				
+				actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.PREPARE_TURN,1,24,false,.1,0,0);	// turn wheels forward
+				actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.PIVOT,1,41,false,880,1,0);	// make sure pivot is parallel with ground
+				actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.SWERVE,25,38,false,.26,0,0);	// push forward a bit
+				actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.HATCH_INTAKE,40,41,false,1,0,0);	// assuming we've speared already, grab the hatch
+				actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.PIVOT,45,85,false,780,1,0);	// pull hatch out
+				actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.LIFT,55,75,false,.12,0,0);	// lift up just a bit
+				actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.SWERVE,70,90,false,-.26,0,0);	// back up
 			}
 
 			/**
@@ -271,6 +289,7 @@ public class Robot extends TimedRobot {
 				if (matchTime == 0) leds.setLEDs(Blinkin.C1_AND_C2_GRADIENT);
 				if (1 < matchTime && matchTime <= 130) leds.setLEDs(Blinkin.STROBE_RED);
 				if (matchTime > 130) leds.setLEDs(Blinkin.RAINBOW_RAINBOWPALETTE);
+				SmartDashboard.putNumber("LEDnumber",leds.getLEDs());
 			}
 			
 			/**
@@ -298,13 +317,13 @@ public class Robot extends TimedRobot {
 			 * This function is called when teleop begins
 			 */
 			public void teleopInit() {
-				if (PIDautoAngle[0].isEnabled()) {
+				/*if (PIDautoAngle[0].isEnabled()) {
 					setAllPIDControllers(PIDautoAngle, false);
 				}
 				if (PIDautoDistance[0].isEnabled()) {
 					setAllPIDControllers(PIDautoDistance, false);
 				}
-				setAllPIDControllers(PIDdrive, true);
+				setAllPIDControllers(PIDdrive, true); old auto PIDs, probably junk */
 				
 				encoderDistance.reset();
 				
@@ -630,7 +649,7 @@ public class Robot extends TimedRobot {
 					if (controlWorking.getPOV() == 0) liftLevel(2);
 					if (controlWorking.getPOV() == 90 || controlWorking.getPOV() == 45) liftLevel(3);
 
-					if (liftSetpointControl == true) motorLift.set(ControlMode.PercentOutput, -proportionalLoop(.15,liftSetpoint / 75,motorLift.getSelectedSensorPosition() / 75));
+					if (liftSetpointControl == true) setLift(liftSetpoint);
 
 					// Run the climber
           if (controlWorking.getRawButton(1)) {
@@ -663,15 +682,19 @@ public class Robot extends TimedRobot {
 					} else motorPivot.set(ControlMode.PercentOutput,0);*/
 
 					if (Math.abs(controlWorking.getRawAxis(1)) >= CONTROL_PIVOT_DEADZONE) {
-						pivotSetpoint += controlWorking.getRawAxis(1) * 4;
+						pivotSetpoint += controlWorking.getRawAxis(1) * 6.5;
 					}
-					motorPivot.set(ControlMode.PercentOutput,proportionalLoop(.005, motorPivot.getSelectedSensorPosition() / 5, pivotSetpoint / 5));
-					//motorPivot.set(ControlMode.Position,-pivotSetpoint);
+					setPivot(pivotSetpoint);
 
-					// Reset lift encoder
+					// Reset pivot encoder
 					if (controlWorking.getRawButton(BUTTON_LSTICK)) {
 						motorPivot.setSelectedSensorPosition(0);
 						pivotSetpoint = 0;
+					}
+
+					// Auto hatch place
+					if (controlWorking.getRawButton(BUTTON_SELECT)) {
+						actionQueues[QUEUE_PLACEHATCH].queueStart();
 					}
 				}
 
@@ -706,6 +729,7 @@ public class Robot extends TimedRobot {
 				SmartDashboard.putBoolean("limelightSeeking",limelightSeeking);
 				SmartDashboard.putNumber("limelightGoalAngle",limelightGoalAngle);
 				SmartDashboard.putNumber("limelightROC",limelightROC);
+				SmartDashboard.putNumber("LEDnumber",leds.getLEDs());
 
 				// LED functions
 				if (limelightSeeking == false) leds.setLEDs(Blinkin.C1_LARSONSCAN); else leds.setLEDs(Blinkin.LIGHTCHASE_RED);	// rudimentary for now
@@ -866,6 +890,22 @@ public class Robot extends TimedRobot {
 		}
 
 		/**
+		 * Sets the pivot to a given setpoint using a calibrated proportional loop control. This should probably ALWAYS be used when moving the pivot arm.
+		 * @param setpoint the raw desired setpoint, no subtractions or changes
+		 */
+		public static void setPivot(double setpoint) {
+			motorPivot.set(ControlMode.PercentOutput,proportionalLoop(.025, motorPivot.getSelectedSensorPosition() / 5, setpoint / 5));
+		}
+		
+		/**
+		 * Sets the lift to a given setpoint using a calibrated proportional loop control.
+		 * @param setpoint the desired setpoint
+		 */
+		public static void setLift(double setpoint) {
+			motorLift.set(ControlMode.PercentOutput, -proportionalLoop(.15,setpoint / 75,motorLift.getSelectedSensorPosition() / 75));
+		}
+
+		/**
 		 * Tell all of the action queues to run if they are enabled.
 		 * @param queues[] the array of queues to iterate through
 		 */
@@ -912,6 +952,7 @@ public class Robot extends TimedRobot {
 			if (param2 == 1) {
 				liftSetpoint = param1;
 				liftSetpointControl = true;
+				//setLift(param1);	don't think this is needed???
 			} else {
 				motorLift.set(ControlMode.PercentOutput,param1);
 				liftSetpointControl = false;
@@ -964,9 +1005,7 @@ public class Robot extends TimedRobot {
 		 * @param param2 the second parameter, whether to use a percent, 0, or an encoder value, 1
 		 */
 		public static void queuePivot(int timeEnd, double param1, double param2) {
-			ControlMode myControlMode = ControlMode.PercentOutput;
-			if (param2 == 1) myControlMode = ControlMode.Position;
-			motorPivot.set(myControlMode,param1);
+			if (param2 == 1) setPivot(param1); else motorPivot.set(ControlMode.PercentOutput,param1);
 		}
 		
 		/**
