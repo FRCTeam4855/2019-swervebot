@@ -51,9 +51,9 @@ public class Robot extends TimedRobot {
 			final double CONTROL_CAM_STRAFEPIDSTRAFE = .0390;		// the proportional value for strafing during the strafing phase
 			final double CONTROL_CAM_FWDANGLECORRECT = .025;		// the robot naturally drifts in this direction when approaching a target, this value corrects that drift
 			final double CONTROL_CAM_FWDPIDSTRAFE = .02;				// the proportional value for strafing during the forward phase
-			final double CONTROL_CAM_FWDPIDFWD = .004;					// the proportional value for forward motion during the forward phase
+			final double CONTROL_CAM_FWDPIDFWD = .005;					// the proportional value for forward motion during the forward phase
 			final double CONTROL_CAM_FWDAREATHRESHOLD = 90;			// the goal area during the forward phase, used in calculating forward speed
-			final double CONTROL_CAM_AREACLEARANCE = 10;				// the area that should be read from the limelight to safely say that we've reached the target
+			final double CONTROL_CAM_AREACLEARANCE = 5;					// the area that should be read from the limelight to safely say that we've reached the target
 			final boolean CONTROL_CAM_VALIDATION = false;				// whether to enable or disable limelight validating its outputs
 			final int CONTROL_CAM_VALIDATIONTIME = 3;						// every x number of steps limelight will validate limelight outputs to ensure that they're sane
 			final double CONTROL_CAM_VALIDXDIFF = 12;						// changes in the limelightX value under this number will be considered valid
@@ -554,7 +554,7 @@ public class Robot extends TimedRobot {
                       /*if (-.3 < limelightROC && limelightROC < .3)  {
                         limelightPhase = 3;
                       }*/
-                      limelightInputTimer = 50;
+                      limelightInputTimer = 20;
                     }
                   }
                   // Slightly approach target, correct angle based on gyro and limelightROC
@@ -567,7 +567,7 @@ public class Robot extends TimedRobot {
                       swerve(.1, -proportionalLoop(.038,limelightX,0),proportionalLoop(.0024,ahrs.getYaw() / 2,limelightGoalAngle / 2),false);
                       if ((-CONTROL_CAM_MOE < limelightX && limelightX < CONTROL_CAM_MOE) && (-CONTROL_CAM_ANGLETHRESHOLD + limelightGoalAngle < ahrs.getYaw() && ahrs.getYaw() < CONTROL_CAM_ANGLETHRESHOLD + limelightGoalAngle)) {	// if I'm laterally within margin of error and my angle is within threshold
                         limelightPhase = 3;
-                        limelightInputTimer = 50;
+                        limelightInputTimer = 20;
                       }
                     }
                   }
