@@ -45,28 +45,29 @@ public class Robot extends TimedRobot {
 	final double CONTROL_PIVOT_DEADZONE = .06;					// minimum value before joystick inputs will be considered on the pivot arm
 	final double CONTROL_FOOTWHEEL_DEADZONE = .12;			// minimum value before trigger inputs will be considered on foot wheels
 	final static double CONTROL_LIFTLEVEL1 = 590;				// level 1 encoder value (orig 600, lowered to counteract the figidy nature of this level during PID)
-	final static double CONTROL_LIFTLEVEL2 = 8500;			// level 2 encoder value
-	final static double CONTROL_LIFTLEVEL3 = 15000;			// level 3 encoder value
+	final static double CONTROL_LIFTLEVEL2 = 8150;			// level 2 encoder value
+	final static double CONTROL_LIFTLEVEL3 = 14500;			// level 3 encoder value
 
 	final double CONTROL_CAM_MOE = 5.2;	          			// margin of lateral error for that alignment process for the limelight
 	final double CONTROL_CAM_ANGLETHRESHOLD = 9;				// the limelight allows the robot to be +- this value off from its target angle and still call it good
 	final boolean CONTROL_CAM_INTERRUPTRECOVERY = true;	// whether or not interruption recovery should be enabled or not
 	final int CONTROL_CAM_INTERRUPTRECOVERYTIME = 30;		// the maximum amount of time to give the camera to recover its reading on the target
 	final double CONTROL_CAM_STRAFEPIDANGLE = .002;			// the proportional value for adjusting the angle during the strafing phase
-	final double CONTROL_CAM_STRAFEPIDSTRAFE = .0390;		// the proportional value for strafing during the strafing phase
-	final double CONTROL_CAM_FWDANGLECORRECT = .031;		// the robot naturally drifts in this direction when approaching a target, this value corrects that drift
-	final double CONTROL_CAM_FWDPIDSTRAFE = .02;				// the proportional value for strafing during the forward phase
-	final double CONTROL_CAM_FWDPIDFWD = .005;					// the proportional value for forward motion during the forward phase
-	final double CONTROL_CAM_FWDAREATHRESHOLD = 90;			// the goal area during the forward phase, used in calculating forward speed
-	final double CONTROL_CAM_AREACLEARANCE = 5;					// the area that should be read from the limelight to safely say that we've reached the target
-	final boolean CONTROL_CAM_VALIDATION = false;				// whether to enable or disable limelight validating its outputs
+	final double CONTROL_CAM_FWDPIDANGLE = .003;			// the proportional value for adjusting the angle during the strafing phase
+	final double CONTROL_CAM_STRAFEPIDSTRAFE = .0412;		// the proportional value for strafing during the strafing phase
+	final double CONTROL_CAM_FWDANGLECORRECT = 0;		// the robot naturally drifts in this direction when approaching a target, this value corrects that drift
+	final double CONTROL_CAM_FWDPIDSTRAFE = .012;				// the proportional value for strafing during the forward phase (originally .017)
+	final double CONTROL_CAM_FWDPIDFWD = .1;					// the proportional value for forward motion during the forward phase
+	final double CONTROL_CAM_FWDAREATHRESHOLD = 5.8;			// the goal area during the forward phase, used in calculating forward speed
+	final double CONTROL_CAM_AREACLEARANCE = 5.1;					// the area that should be read from the limelight to safely say that we've reached the target
+	final boolean CONTROL_CAM_VALIDATION = true;				// whether to enable or disable limelight validating its outputs
 	final int CONTROL_CAM_VALIDATIONTIME = 2;						// every x number of steps limelight will validate limelight outputs to ensure that they're sane
-	final double CONTROL_CAM_VALIDXSCORE = .15;					// the coefficient used to determine the validation score of limelightX
-	final double CONTROL_CAM_VALIDYSCORE = .6;					// the coefficient used to determine the validation score of limelightY
-	final double CONTROL_CAM_VALIDASCORE = .9;					// the coefficient used to determine the validation score of limelightArea
+	final double CONTROL_CAM_VALIDXSCORE = .1;					// the coefficient used to determine the validation score of limelightX
+	final double CONTROL_CAM_VALIDYSCORE = .2;					// the coefficient used to determine the validation score of limelightY
+	final double CONTROL_CAM_VALIDASCORE = .6;					// the coefficient used to determine the validation score of limelightArea
 	final double CONTROL_CAM_VALIDPSCORE = 2; 					// the coefficient used to determine the validation score of limelightProp
 	final int CONTROL_CAM_VALIDTIMEOUT = 20;						// amount of time the robot will substitute invalid outputs for until it gives up and sticks with the outputs it sees
-	final double CONTROL_CAM_VALIDSCORETHRESHOLD = 12;	// maximum acceptable validation score
+	final double CONTROL_CAM_VALIDSCORETHRESHOLD = 36;	// maximum acceptable validation score
 
 	final boolean INTERFACE_SINGLEDRIVER = false;  			// whether or not to enable or disable single driver input (press START to switch between controllers)
 	//=======================================
@@ -117,7 +118,8 @@ public class Robot extends TimedRobot {
 	double limelightValidX = 0, limelightValidY = 0, limelightValidArea = 0, limelightValidProp = 0;	// the last validated values obtained from the limelight
 	int limelightValidTimer = CONTROL_CAM_VALIDATIONTIME;																							// every x steps limelight values will be validated
 	int limelightValidTimerTotal = CONTROL_CAM_VALIDTIMEOUT;																					// robot will stop trying to validate values after this much time has passed since a rejection
-	boolean limelightInvalidValues = false;																														// whether invalid values were found from the limelight
+	boolean limelightInvalidValues = false;													// whether invalid values were found from the limelight
+	double limelightForceAngle = -1;				// if specific input is given to attempt to guide to a certain angle
 	// Operator
 	static double pivotSetpoint = 0;						// setpoint for the pivot
 	static double liftSetpoint = 0;							// setpoint for the lift
@@ -192,7 +194,7 @@ public class Robot extends TimedRobot {
 		new Spark(4),
 		new Spark(0)
 	};
-	
+
 	// Pneumatic hatch intake
 	static DoubleSolenoid solenoidHatchIntake = new DoubleSolenoid(0,1);
 	
@@ -246,6 +248,7 @@ public class Robot extends TimedRobot {
 		new ActionQueue(),
 		new ActionQueue(),
 		new ActionQueue(),
+		new ActionQueue(),
 		new ActionQueue()
 	};
 
@@ -292,15 +295,16 @@ public class Robot extends TimedRobot {
 		actionQueues[QUEUE_TEST].queueFeed(ActionQueue.Command.PIVOT,100,150,false,-.2,0,0);
 
 		// Place hatch (almost functional)
-		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,1,84,false,870,1,0);	// make sure pivot is parallel with ground
-		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,25,75,false,.48,0,0);	// move towards target assuming we're lined up
+		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,1,24,false,.22,.01,0);
+		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,1,84,false,-135,1,0);	// make sure pivot is parallel with ground
+		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,25,75,false,.48,.01,0);	// move towards target assuming we're lined up
 		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.HATCH_INTAKE,95,96,false,0,0,0);	// release the hatch
-		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,130,180,false,940,1,0);	// pivot down just a touch
-		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,150,180,false,-.38,0,0);	// back up
+		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,140,200,false,-.38,0,0);	// back up
+		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,150,200,false,-60,1,0);	// pivot down just a touch
 		
 		// Grab hatch (not working)
 		actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.HATCH_INTAKE,1,2,false,0,0,0);	// make sure intake is open
-		actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.PIVOT,1,41,false,880,1,0);	// make sure pivot is parallel with ground
+		actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.PIVOT,1,41,false,-100,1,0);	// make sure pivot is parallel with ground
 		actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.SWERVE,30,60,false,.48,0,0);	// push forward a bit
 		actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.HATCH_INTAKE,70,71,false,1,0,0);	// assuming we've speared already, grab the hatch
 		actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.PIVOT,95,115,false,810,1,0);	// pull hatch out
@@ -308,7 +312,8 @@ public class Robot extends TimedRobot {
 		actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.SWERVE,145,175,false,-.48,0,0);	// back up
 
 		// Descend the hab
-		// actionQueues[QUEUE_HABDESCENT].queueFeed(ActionQueue.Command.PIVOT,1,150,false,880);
+		actionQueues[QUEUE_HABDESCENT].queueFeed(ActionQueue.Command.PIVOT,1,150,false,880,1,0);
+		actionQueues[QUEUE_HABDESCENT].queueFeed(ActionQueue.Command.SWERVE,75,250,false,.7,0,0);
 	}
 	
 	/**
@@ -365,7 +370,7 @@ public class Robot extends TimedRobot {
 	 * This function is called when teleop begins
 	 */
 	public void teleopInit() {
-		
+		init();
 	}
 	
 	/**
@@ -380,7 +385,6 @@ public class Robot extends TimedRobot {
 	 * This should be run whenever the robot is being enabled
 	 */
 	public void init() {
-		// !!!! NOT JUNK DON'T REMOVE !!!
 		if (PIDautoAngle[0].isEnabled()) {
 			setAllPIDControllers(PIDautoAngle, false);
 		}
@@ -399,9 +403,11 @@ public class Robot extends TimedRobot {
 		resetAllWheels();
 
 		limelightGuideMode = 0;
+		driverOriented = true;
 
 		pivotSetpoint = 0;motorPivot.setSelectedSensorPosition(0);
-		motorLift.setSelectedSensorPosition(0);
+		liftSetpoint = 0;motorLift.setSelectedSensorPosition(0);
+		liftSetpointControl = false;pivotSetpointControl = false;
 	}
 
 	/**
@@ -415,7 +421,7 @@ public class Robot extends TimedRobot {
 			// Drive the robot
 			if (!emergencyTank) {
 				if (!controlWorking.getRawButton(1) && !limelightSeeking) {
-					driverOriented = true;
+					//driverOriented = true;
 					jFwd = -controlWorking.getRawAxis(1);if (Math.abs(jFwd) < CONTROL_DEADZONE) jFwd = 0;
 					if (!controlWorking.getRawButton(BUTTON_RB)) jFwd /= CONTROL_SPEEDREDUCTION;
 					jStr = controlWorking.getRawAxis(0);if (Math.abs(jStr) < CONTROL_DEADZONE) jStr = 0;
@@ -454,15 +460,17 @@ public class Robot extends TimedRobot {
 				setAllPIDSetpoints(PIDdrive, 0);
 			}
 
-			// Testing an action queue
-			if (controlWorking.getRawButtonPressed(BUTTON_SELECT)) actionQueues[QUEUE_TEST].queueStart();
-
 			// Foot wheel control
 			if (controlWorking.getRawAxis(2) >= CONTROL_FOOTWHEEL_DEADZONE) {
 				motorFootWheels.set(ControlMode.PercentOutput,controlWorking.getRawAxis(2));
 			} else if (controlWorking.getRawAxis(3) >= CONTROL_FOOTWHEEL_DEADZONE) {
 				motorFootWheels.set(ControlMode.PercentOutput,-controlWorking.getRawAxis(3));
 			} else motorFootWheels.set(ControlMode.PercentOutput,0);
+
+			// Toggle operator control
+			if (controlWorking.getRawButtonPressed(BUTTON_A)) {
+				if (driverOriented == true) driverOriented = false; else driverOriented = true;
+			}
 
 			// LIMELIGHT SEEKING CODE
 			// Toggle Limelight activity
@@ -479,14 +487,37 @@ public class Robot extends TimedRobot {
 				camMode.setNumber(0);	// set cam to low-contrast view
 				limelightGather();
 				if (controlWorking.getRawButtonPressed(BUTTON_B) && limelightTargetFound == true && limelightSeeking == false) {
-					// Set seeking on
+					// Set seeking to GOD'S WILL, an angle will be chosen by Limelight
 					limelightSeeking = true;
 					limelightPhase = 1;
 					limelightInputTimer = 20;
 					limelightGuideMode = 0;
 					limelightInterTimer = CONTROL_CAM_INTERRUPTRECOVERYTIME;
 					limelightInterX = 0;limelightInterY = 0;limelightInterArea = 0;
-					System.out.println("seeking initiated: mode 0 - multiphase guidance");
+					limelightForceAngle = -1;
+					System.out.println("seeking initiated: mode 0 - multiphase guidance: GOD'S WILL");
+				}
+				if (controlWorking.getPOV() == 0 && limelightTargetFound == true && limelightSeeking == false) {
+					// Set seeking to FAR TARGET, the angle shall be 145 degrees
+					limelightSeeking = true;
+					limelightPhase = 1;
+					limelightInputTimer = 20;
+					limelightGuideMode = 0;
+					limelightInterTimer = CONTROL_CAM_INTERRUPTRECOVERYTIME;
+					limelightInterX = 0;limelightInterY = 0;limelightInterArea = 0;
+					limelightForceAngle = 150;
+					System.out.println("seeking initiated: mode 0 - multiphase guidance: FAR TARGET");
+				}
+				if (controlWorking.getPOV() == 180 && limelightTargetFound == true && limelightSeeking == false) {
+					// Set seeking to NEAR TARGET, the angle shall be 145 degrees
+					limelightSeeking = true;
+					limelightPhase = 1;
+					limelightInputTimer = 20;
+					limelightGuideMode = 0;
+					limelightInterTimer = CONTROL_CAM_INTERRUPTRECOVERYTIME;
+					limelightInterX = 0;limelightInterY = 0;limelightInterArea = 0;
+					limelightForceAngle = 20;
+					System.out.println("seeking initiated: mode 0 - multiphase guidance: NEAR TARGET");
 				}
 				/*if (controlWorking.getRawButtonPressed(BUTTON_START) && limelightTargetFound == true && limelightSeeking == false) {
 					// Set seeking on
@@ -512,7 +543,7 @@ public class Robot extends TimedRobot {
 									limelightInputTimer --;	// elapse time to make sure the wheels are turned by the time I'm moving
 									swerve(0,.1,0,false);	// turn wheels to lateral movement
 									// Find goal angle
-									limelightGoalAngle = 45 * Math.round(ahrs.getYaw() / 45);	// the goal angle is always going to be at some 45 degree angle so round yaw to the nearest 45
+									if (limelightForceAngle == -1) limelightGoalAngle = 45 * Math.round(ahrs.getYaw() / 45);	else limelightGoalAngle = limelightForceAngle; // the goal angle is always going to be at some 45 degree angle so round yaw to the nearest 45
 									if (Math.signum(ahrs.getYaw()) != Math.signum(limelightGoalAngle)) limelightGoalAngle *= Math.signum(ahrs.getYaw());	// if the angle I want is negative and I'm positive then change the target to my angle
 								} else {
 									if (Math.signum(ahrs.getYaw()) != Math.signum(limelightGoalAngle)) limelightGoalAngle *= Math.signum(ahrs.getYaw());	// if the angle I want is negative and I'm positive then change the target to my angle
@@ -533,11 +564,14 @@ public class Robot extends TimedRobot {
 								
 								if (limelightInputTimer > 0) {
 									limelightInputTimer --; 
-									swerve(.1,0,0,false);
-								} else swerve(-proportionalLoop(CONTROL_CAM_FWDPIDFWD,limelightArea,CONTROL_CAM_FWDAREATHRESHOLD),proportionalLoop(CONTROL_CAM_FWDPIDSTRAFE,limelightX,0),CONTROL_CAM_FWDANGLECORRECT,false);
-
+									swerve(.2,.09,0,false);
+									if (limelightForceAngle == -1) limelightGoalAngle = 45 * Math.round(ahrs.getYaw() / 45);	else limelightGoalAngle = limelightForceAngle; // the goal angle is always going to be at some 45 degree angle so round yaw to the nearest 45
+								} else {
+									limelightPIDAngle = -proportionalLoop(CONTROL_CAM_FWDPIDANGLE,ahrs.getYaw(),limelightGoalAngle);	// find the motor speed required to reach my target angle
+									swerve(-proportionalLoop(CONTROL_CAM_FWDPIDFWD,limelightArea,CONTROL_CAM_FWDAREATHRESHOLD),proportionalLoop(CONTROL_CAM_FWDPIDSTRAFE,limelightX,0),limelightPIDAngle,false);
+								}
 								// Proceed to next step
-								if (limelightArea >= 70) {
+								if (limelightArea >= CONTROL_CAM_AREACLEARANCE) {
 									limelightKillSeeking();
 								}
 							}
@@ -690,7 +724,7 @@ public class Robot extends TimedRobot {
 			// Pivot control - uses a setpoint by default, push in the joystick to change
 			if (!pivotSetpointControl) {
 				if (Math.abs(controlWorking.getRawAxis(1)) >= CONTROL_PIVOT_DEADZONE) {
-					motorPivot.set(ControlMode.PercentOutput,controlWorking.getRawAxis(1) / 2);
+					motorPivot.set(ControlMode.PercentOutput,-controlWorking.getRawAxis(1) / 2);
 				} else motorPivot.set(ControlMode.PercentOutput,0);
 			} else {
 				if (Math.abs(controlWorking.getRawAxis(1)) >= CONTROL_PIVOT_DEADZONE) {
@@ -700,13 +734,16 @@ public class Robot extends TimedRobot {
 
 			// Level pivot to eject a cargo
 			if (controlWorking.getPOV() == 180) {
-				pivotSetpoint = 660;
+				pivotSetpoint = -410;
 				pivotSetpointControl = true;
 			}
 
 			// Switch between setpoint control and powered control
-			if (controlWorking.getRawButton(BUTTON_LSTICK) && !controlWorking.getRawButton(BUTTON_B)) {
-				if (pivotSetpointControl == true) pivotSetpointControl = false; else pivotSetpointControl = true;
+			if (controlWorking.getRawButtonPressed(BUTTON_LSTICK) && !controlWorking.getRawButton(BUTTON_B)) {
+				if (pivotSetpointControl == true) pivotSetpointControl = false; else {
+					pivotSetpointControl = true;
+					pivotSetpoint = motorPivot.getSelectedSensorPosition();
+				}
 			}
 
 			// Reset pivot encoder with left stick and B button
@@ -719,11 +756,7 @@ public class Robot extends TimedRobot {
 
 			// Auto hatch place
 			if (controlWorking.getRawButton(BUTTON_SELECT)) {
-				actionQueues[QUEUE_PLACEHATCH].queueStart();
-			}
-			// Auto hatch grab
-			if (controlWorking.getRawButton(BUTTON_START)) {
-				actionQueues[QUEUE_GRABHATCH].queueStart();
+				if (!actionQueues[QUEUE_PLACEHATCH].queueRunning()) actionQueues[QUEUE_PLACEHATCH].queueStart(); else actionQueues[QUEUE_PLACEHATCH].queueStop();
 			}
 		}
 
@@ -759,6 +792,8 @@ public class Robot extends TimedRobot {
 		SmartDashboard.putNumber("limelightGoalAngle",limelightGoalAngle);
 		SmartDashboard.putNumber("limelightROC",limelightROC);
 		SmartDashboard.putNumber("LEDnumber",leds.getLEDs());
+		SmartDashboard.putBoolean("PivotSetpointCtrl",pivotSetpointControl);
+		SmartDashboard.putBoolean("DriverOriented",driverOriented);
 
 		// LED functions
 		if (limelightSeeking == false) leds.setLEDs(Blinkin.C1_LARSONSCAN); else leds.setLEDs(Blinkin.LIGHTCHASE_RED);	// rudimentary for now
@@ -939,12 +974,16 @@ public class Robot extends TimedRobot {
 					limelightValidX = limelightX;
 					limelightValidY = limelightY;
 					limelightValidArea = limelightArea;
+					limelightValidProp = limelightProp;
 				} else {
 					// Check if values are valid by scoring each change
-					double lxROC = Math.abs(limelightValidX - tx.getDouble(0.0)) * .15; 	// rate of change of the x value
-					double lyROC = Math.abs(limelightValidY - ty.getDouble(0.0)) * .6;		// rate of change of the y value
-					double laROC = Math.abs(limelightValidArea - ta.getDouble(0.0)) * .9;// rate of change on the area value
-					double lpROC = Math.abs(limelightValidProp - thor.getDouble(0.0) / tvert.getDouble(0.0) * 2);	// rate of change on the prop value
+					double lPropTemp = thor.getDouble(0.0) / tvert.getDouble(0.0);
+					double lxROC = Math.abs(limelightValidX - tx.getDouble(0.0)) * CONTROL_CAM_VALIDXSCORE; 	// rate of change of the x value
+					double lyROC = Math.abs(limelightValidY - ty.getDouble(0.0)) * CONTROL_CAM_VALIDYSCORE;		// rate of change of the y value
+					double laROC = Math.abs(limelightValidArea - ta.getDouble(0.0)) * CONTROL_CAM_VALIDASCORE;// rate of change on the area value
+					double lpROC = Math.abs(limelightValidProp - lPropTemp) * CONTROL_CAM_VALIDPSCORE;	// rate of change on the prop value
+					if ((1.5 < lPropTemp && lPropTemp < 3) == false) lpROC += 35; // target's proportions are too weird to be a target
+					if (ta.getDouble(0.0) > 9) laROC += 15;	// target is too big to be a target
 					double lScoreSum = lxROC + lyROC + laROC + lpROC;
 					SmartDashboard.putNumber("limelightValidScore",lScoreSum);
 					if ((lScoreSum > CONTROL_CAM_VALIDSCORETHRESHOLD) && limelightValidTimerTotal >= 0) {
@@ -984,6 +1023,7 @@ public class Robot extends TimedRobot {
 		SmartDashboard.putNumber("LimelightWidth", limelightWidth);
 		SmartDashboard.putNumber("LimelightHeight", limelightHeight);
 		SmartDashboard.putNumber("LimelightEstAngle",limelightEstAngle);
+		SmartDashboard.putNumber("LimelightProp",limelightProp);
 	}
 
 	/**
@@ -1154,5 +1194,14 @@ public class Robot extends TimedRobot {
 	public static void queueLiftLevel(int timeEnd, double param1) {
 		int myLevel = (int) param1;	// converts param1 into an integer
 		liftLevel(myLevel);
+	}
+
+	/**
+	 * The queue action for starting a limelight tracking session
+	 * @param timeEnd the designated time for the command to end
+	 * @param param1 the first parameter, the command to run (0 = near, 1 = far, 2 = god's will)
+	 */
+	public static void queueLimelightTrack(int timeEnd, double param1) {
+
 	}
 }

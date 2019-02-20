@@ -9,7 +9,7 @@ import com.ctre.phoenix.motorcontrol.ControlMode;
 
 public class ActionQueue {
 	enum Command {
-		DEAD, PREPARE_TURN, SWERVE, LIFT, PIVOT, HATCH_INTAKE, CARGO_INTAKE, FOOT_WHEELS, FOOT_EXTEND, LIFT_LEVEL;
+		DEAD, PREPARE_TURN, SWERVE, LIFT, PIVOT, HATCH_INTAKE, CARGO_INTAKE, FOOT_WHEELS, FOOT_EXTEND, LIFT_LEVEL, LIMELIGHT_TRACK;
 	}
 	
 	Command queueListActions [] = new Command [20];		// action ID to perform
