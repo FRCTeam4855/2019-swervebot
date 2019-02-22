@@ -123,6 +123,8 @@ public class ActionQueue {
 						break;
 					case LIFT_LEVEL:
 						Robot.queueLiftLevel(queueListTimeEnd[i],queueListParam1[i]);
+					case LIMELIGHT_TRACK:
+						Robot.queueLimelightTrack(queueListTimeEnd[i],queueListParam1[i]);
 					default:
                         break;
                 }

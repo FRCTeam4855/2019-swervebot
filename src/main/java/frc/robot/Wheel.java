@@ -19,7 +19,7 @@ public class Wheel {
 	
 	/**
 	 * This function takes
-	 * 
+	 * oh bubbers looks like this javadoc never got finished... this function is a mystery...
 	 * @param dL1
 	 * @param dL2
 	 * @return
