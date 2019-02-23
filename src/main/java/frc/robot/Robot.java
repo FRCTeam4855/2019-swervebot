@@ -102,6 +102,7 @@ public class Robot extends TimedRobot {
 	boolean reverseRotate = false; 					// ?????
 	boolean driverOriented = true; 					// true = driver oriented, false = robot oriented
 	static double matchTime = 0;					// the calculated match time from the driver station
+	boolean emergencyReadjust = false;				// if hell has come to earth and you need to manually adjust wheels during a match, this will be enabled
 	// All for calculating wheel speed/angle, if you need to read from a motor don't pull from these
 	static double a, b, c, d, max, temp, rads; 
 	static double encoderSetpointA, encoderSetpointB, encoderSetpointC, encoderSetpointD;
@@ -250,6 +251,7 @@ public class Robot extends TimedRobot {
 		new ActionQueue(),
 		new ActionQueue(),
 		new ActionQueue(),
+		new ActionQueue(),
 		new ActionQueue()
 	};
 
@@ -259,6 +261,7 @@ public class Robot extends TimedRobot {
 	final int QUEUE_CLIMB = 2;
 	final int QUEUE_GRABHATCH = 3;
 	final int QUEUE_HABDESCENT = 4;
+	final int QUEUE_HABASCENT = 5;
 	//=======================================
 
 	// End of variable definitions
@@ -291,19 +294,20 @@ public class Robot extends TimedRobot {
 		motorClimb.setSelectedSensorPosition(0);
 
 		// Feed action queues, they hunger for your command
+		// Test, does basically nothing
 		actionQueues[QUEUE_TEST].queueFeed(ActionQueue.Command.PIVOT,1,50,false,.2,0,0);
 		actionQueues[QUEUE_TEST].queueFeed(ActionQueue.Command.SWERVE,50,100,false,.4,0,0);
 		actionQueues[QUEUE_TEST].queueFeed(ActionQueue.Command.PIVOT,100,150,false,-.2,0,0);
 
 		// Place hatch (almost functional)
-		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,1,24,false,.22,.01,0);
+		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,1,24,false,.22,0,0);		// turn wheels forward
 		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,1,84,false,-135,1,0);		// make sure pivot is parallel with ground
-		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,25,75,false,.48,.01,0);		// move towards target assuming we're lined up
+		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,25,75,false,.48,0,0);		// move towards target assuming we're lined up
 		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.HATCH_INTAKE,95,96,false,0,0,0);	// release the hatch
 		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,140,200,false,-.38,0,0);	// back up
 		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,150,200,false,-60,1,0);		// pivot down just a touch
 		
-		// Grab hatch (not working)
+		// Grab hatch (not working and not properly calibrated, do not run)
 		actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.HATCH_INTAKE,1,2,false,0,0,0);		// make sure intake is open
 		actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.PIVOT,1,41,false,-100,1,0);			// make sure pivot is parallel with ground
 		actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.SWERVE,30,60,false,.48,0,0);		// push forward a bit
@@ -315,6 +319,12 @@ public class Robot extends TimedRobot {
 		// Descend the hab
 		actionQueues[QUEUE_HABDESCENT].queueFeed(ActionQueue.Command.PIVOT,1,150,false,880,1,0);
 		actionQueues[QUEUE_HABDESCENT].queueFeed(ActionQueue.Command.SWERVE,75,250,false,.7,0,0);
+
+		// Ascend the hab (untested), should get us to where we can use the footwheels to drive on, this doesn't complete that action
+		actionQueues[QUEUE_HABASCENT].queueFeed(ActionQueue.Command.SWERVE,1,20,false,.1,0,0);			// turn wheels
+		actionQueues[QUEUE_HABASCENT].queueFeed(ActionQueue.Command.FOOT_EXTEND,50,550,false,2000,1,0);	// this foot value has not been calibrated yet, and neither has the proportional loop which controls it... be careful
+		actionQueues[QUEUE_HABASCENT].queueFeed(ActionQueue.Command.PIVOT,50,550,false,-200,1,0);		// pivot BELOW parallel to keep the robot angled the right way (also not calibrated)
+		actionQueues[QUEUE_HABASCENT].queueFeed(ActionQueue.Command.LIFT,50,550,false,-.4,0,0);			// lift down using purely powered control
 	}
 	
 	/**
@@ -421,8 +431,8 @@ public class Robot extends TimedRobot {
 			
 			// Drive the robot
 			if (!emergencyTank) {
-				if (!controlWorking.getRawButton(1) && !limelightSeeking) {
-					//driverOriented = true;
+				if (!limelightSeeking && !emergencyReadjust && (!controlWorking.getRawButton(BUTTON_LSTICK) && !controlWorking.getRawButton(BUTTON_RSTICK))) {
+					// Drive the robot, will adjust driverOriented based on toggled input
 					jFwd = -controlWorking.getRawAxis(1);if (Math.abs(jFwd) < CONTROL_DEADZONE) jFwd = 0;
 					if (!controlWorking.getRawButton(BUTTON_RB)) jFwd /= CONTROL_SPEEDREDUCTION;
 					jStr = controlWorking.getRawAxis(0);if (Math.abs(jStr) < CONTROL_DEADZONE) jStr = 0;
@@ -430,11 +440,10 @@ public class Robot extends TimedRobot {
 					jRcw = controlWorking.getRawAxis(4);if (Math.abs(jRcw) < CONTROL_DEADZONE) jRcw = 0;
 					if (!controlWorking.getRawButton(BUTTON_RB)) jRcw /= CONTROL_SPEEDREDUCTION;
 					if (reverseRotate) {jRcw=-jRcw;}
-					swerve(jFwd,jStr,jRcw,driverOriented);
-				} else {
-					/*
+					if (jFwd != 0 && jStr != 0 && jRcw != 0) swerve(jFwd,jStr,jRcw,driverOriented);
+				} else if (controlWorking.getRawButton(BUTTON_LSTICK) && controlWorking.getRawButton(BUTTON_RSTICK)) {
+					// Autotilt correction, untested and unchanged from 2018 at the moment
 					driverOriented = false;
-						Auto tilt correct program from 2018, deprecated for now
 					if (ahrs.getRoll() >= 2) {
 						swerve(0,0.5,0,false);
 					} else if (ahrs.getRoll() <= -2) {
@@ -443,7 +452,7 @@ public class Robot extends TimedRobot {
 						swerve(0.5,0,0,false);
 					} else if (ahrs.getPitch() <= -2) {
 						swerve(-0.5,0,0,false);
-					}*/
+					}
 				}
 			} else {
 				setAllPIDSetpoints(PIDdrive, 0);
@@ -1097,6 +1106,14 @@ public class Robot extends TimedRobot {
 	public static void setLift(double setpoint) {
 		motorLift.set(ControlMode.PercentOutput, -proportionalLoop(.15,setpoint / 75,motorLift.getSelectedSensorPosition() / 75));
 	}
+	/**
+	 * Sets the foot to a given setpoint using a calibrated proportional loop control.
+	 * @param setpoint the desired setpoint
+	 */
+	public static void setFoot(double setpoint) {
+		// TODO calibrate me
+		motorClimb.set(ControlMode.PercentOutput,proportionalLoop(.02,setpoint / 3,motorClimb.getSelectedSensorPosition() / 3));
+	}
 
 	/**
 	 * Tell all of the action queues to run if they are enabled.
@@ -1108,6 +1125,10 @@ public class Robot extends TimedRobot {
 		}
 	}
 
+	/**
+	 * Kills all action queues in a specified array, regardless of whether they're enabled or not
+	 * @param queues[] the array of queues to kill
+	 */
 	public void killQueues(ActionQueue queues[]) {
 		for (int i = 0; i < queues.length; i++) {
 			queues[i].queueStop();
@@ -1186,9 +1207,7 @@ public class Robot extends TimedRobot {
 	 * @param param2 the second parameter, whether to be a percent, 0, or a setpoint, 1
 	 */
 	public static void queueFootExtend(int timeEnd, double param1, double param2) {
-		ControlMode myControlMode = ControlMode.PercentOutput;
-		if (param2 == 1) myControlMode = ControlMode.Position;
-		motorClimb.set(myControlMode,param1);
+		if (param2 == 0) motorClimb.set(ControlMode.PercentOutput,param1); else setFoot(param1);
 	}
 
 	/**
