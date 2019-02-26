@@ -38,7 +38,7 @@ public class Robot extends TimedRobot {
 	// CONTROL CONSTANTS
 
 	final double CONTROL_SPEEDREDUCTION = 2; 	  			// teleop drivetrain inputs are divided by this number when turbo is NOT engaged
-	final double CONTROL_DEADZONE = 0.21;       			// minimum value before joystick inputs will be considered
+	final double CONTROL_DEADZONE = 0.21;       			// minimum value before joystick inputs will be considered on the swerves
 	final double CONTROL_LIFT_DEADZONE = 0.3;   			// minimum value before joystick inputs will be considered on the lift
 	final double CONTROL_LIFT_PRECISION_FACTOR = 2; 		// lift input is divided by this value when in precision mode
 	final double CONTROL_INTAKE_DEADZONE = .15;				// minimum value before trigger inputs will be considered on intake wheels
@@ -48,7 +48,7 @@ public class Robot extends TimedRobot {
 	final static double CONTROL_LIFTLEVEL2 = 8150;			// level 2 encoder value
 	final static double CONTROL_LIFTLEVEL3 = 14500;			// level 3 encoder value
 
-	final double CONTROL_CAM_MOE = 5.2;	          			// margin of lateral error for that alignment process for the limelight
+	final double CONTROL_CAM_MOE = 5.2;	          			// margin of lateral error for the lateral alignment process for the limelight
 	final double CONTROL_CAM_ANGLETHRESHOLD = 4;			// the limelight allows the robot to be +- this value off from its target angle and still call it good
 	final boolean CONTROL_CAM_INTERRUPTRECOVERY = true;		// whether or not interruption recovery should be enabled or not
 	final static int CONTROL_CAM_INTERRUPTRECOVERYTIME = 30;// the maximum amount of time to give the camera to recover its reading on the target
@@ -477,7 +477,7 @@ public class Robot extends TimedRobot {
 				motorFootWheels.set(ControlMode.PercentOutput,-controlWorking.getRawAxis(3));
 			} else motorFootWheels.set(ControlMode.PercentOutput,0);
 
-			// Toggle operator control
+			// Toggle driver-oriented control
 			if (controlWorking.getRawButtonPressed(BUTTON_A)) {
 				if (driverOriented == true) driverOriented = false; else driverOriented = true;
 			}
@@ -501,10 +501,11 @@ public class Robot extends TimedRobot {
 					limelightStart(-1);
 				}
 				if (controlWorking.getPOV() == 0 && limelightTargetFound == true && limelightSeeking == false) {
-					// Set seeking to FAR TARGET, the angle shall be 145 degrees
+					// Set seeking to FAR TARGET, the angle shall be 150 degrees
 					limelightStart(150);
 				}
 				if (controlWorking.getPOV() == 180 && limelightTargetFound == true && limelightSeeking == false) {
+					// Set seeking to NEAR TARGET, the angle shall be 20 degrees
 					limelightStart(20);
 				}
 				/*if (controlWorking.getRawButtonPressed(BUTTON_START) && limelightTargetFound == true && limelightSeeking == false) {
