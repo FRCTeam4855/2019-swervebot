@@ -14,6 +14,7 @@ package frc.robot;
 
 import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.can.TalonSRX;
+import com.ctre.phoenix.motorcontrol.can.VictorSPX;
 import com.kauailabs.navx.frc.AHRS;
 
 import edu.wpi.first.wpilibj.DoubleSolenoid;
@@ -21,9 +22,11 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.PIDController;
+import edu.wpi.first.wpilibj.PWMVictorSPX;
 import edu.wpi.first.wpilibj.SPI;
 import edu.wpi.first.wpilibj.Servo;
 import edu.wpi.first.wpilibj.Spark;
+import edu.wpi.first.wpilibj.Talon;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -154,11 +157,11 @@ public class Robot extends TimedRobot {
 
 	// Magnetic encoders
 	static Encoder encoderAngle[] = {
-		new Encoder(0,1),
-		new Encoder(2,3),
-		new Encoder(6,7),
-		new Encoder(4,5)
 		
+		new Encoder(2,3),
+		new Encoder(0,1),
+		new Encoder(4,5),
+		new Encoder(6,7)
 	};
 
 	// Define swerve wheel classes
@@ -181,18 +184,18 @@ public class Robot extends TimedRobot {
 	static AHRS ahrs = new AHRS(SPI.Port.kMXP);
 	
 	// All motors
-	static Spark motorAngle[] = { // Directional motors
-		new Spark(3),
-		new Spark(7),
-		new Spark(6),
-		new Spark(2)
+	static Talon motorAngle[] = { // Directional motors
+		new Talon(6),
+		new Talon(1),
+		new Talon(4),
+		new Talon(0)
 	};
 	
-	static Spark motorDrive[] = { // Movement motors
-		new Spark(1),
-		new Spark(5),
-		new Spark(4),
-		new Spark(0)
+	static PWMVictorSPX motorDrive[] = { // Movement motors
+		new PWMVictorSPX(7),
+		new PWMVictorSPX(3),
+		new PWMVictorSPX(5),
+		new PWMVictorSPX(2)
 	};
 
 	// Pneumatic hatch intake
@@ -208,11 +211,11 @@ public class Robot extends TimedRobot {
 	// Blinkin leds = new Blinkin(new Servo(0));
 
 	// Lift/Climber
-	static TalonSRX motorPivot = new TalonSRX(1);
-	static TalonSRX motorFootWheels = new TalonSRX(2);
-	static TalonSRX motorLift = new TalonSRX(3);
-	static TalonSRX motorClimb = new TalonSRX(4);
-	static TalonSRX motorIntake = new TalonSRX(5);
+	static TalonSRX motorPivot = new TalonSRX(2);		// OG robot has 1
+	static TalonSRX motorFootWheels = new TalonSRX(4);	// OG robot has 2
+	static TalonSRX motorLift = new TalonSRX(3);		// OG robot has 3
+	static TalonSRX motorClimb = new TalonSRX(1);		// OG robot has 4
+	static TalonSRX motorIntake = new TalonSRX(5);		// OG robot has 5
 	//=======================================
 	
 	// PID LOOPS AND ROUTINES
@@ -228,7 +231,7 @@ public class Robot extends TimedRobot {
 	// Left behind in old program, unsure if they are necessary yet
 	
 		// These are used for autonomous in the turning to a specific angle
-		static PIDController PIDautoAngle[] = {
+		/*static PIDController PIDautoAngle[] = {
 			new PIDController(0.06,0,0.013,ahrs,motorDrive[0]),
 			new PIDController(0.06,0,0.013,ahrs,motorDrive[1]),
 			new PIDController(0.06,0,0.013,ahrs,motorDrive[2]),
@@ -241,7 +244,7 @@ public class Robot extends TimedRobot {
 			new PIDController(0.025,0,0.01,encoderDistance,motorDrive[1]),
 			new PIDController(0.025,0,0.01,encoderDistance,motorDrive[2]),
 			new PIDController(0.025,0,0.01,encoderDistance,motorDrive[3])
-		};
+		};*/
 	
 	// Action queues
 	ActionQueue actionQueues[] = {
@@ -275,12 +278,12 @@ public class Robot extends TimedRobot {
 		PIDdrive[3].setOutputRange(-1, 1);
 		
 		// Autonomous wheel speed loop settings
-		for (int i=0;i<=3;i++) {
+		/*for (int i=0;i<=3;i++) {
 			PIDautoAngle[i].setOutputRange(-0.5, 0.5);
 			PIDautoAngle[i].setInputRange(-180, 180);
 			PIDautoAngle[i].setContinuous();
 			PIDautoDistance[i].setOutputRange(-0.2, 0.2);
-		}
+		}*/
 
 		// Reset lift/climb encoders
 		motorLift.setSelectedSensorPosition(0);
@@ -321,8 +324,8 @@ public class Robot extends TimedRobot {
 	 */
 	public void disabledInit() {
 		setAllPIDControllers(PIDdrive, false);
-		setAllPIDControllers(PIDautoAngle, false);
-		setAllPIDControllers(PIDautoDistance, false);
+		//setAllPIDControllers(PIDautoAngle, false);
+		//setAllPIDControllers(PIDautoDistance, false);
 		
 		setAllPIDSetpoints(PIDdrive, 0);
 
@@ -340,6 +343,11 @@ public class Robot extends TimedRobot {
 		if (1 < matchTime && matchTime <= 130) leds.setLEDs(Blinkin.STROBE_RED);
 		if (matchTime > 130) leds.setLEDs(Blinkin.RAINBOW_RAINBOWPALETTE);
 		SmartDashboard.putNumber("LEDnumber",leds.getLEDs());
+
+		SmartDashboard.putNumber("Encoder1:", encoderAngle[0].get());
+		SmartDashboard.putNumber("Encoder2:", encoderAngle[1].get());
+		SmartDashboard.putNumber("Encoder3:", encoderAngle[2].get());
+		SmartDashboard.putNumber("Encoder4:", encoderAngle[3].get());
 	}
 	
 	/**
@@ -385,12 +393,12 @@ public class Robot extends TimedRobot {
 	 * This should be run whenever the robot is being enabled
 	 */
 	public void init() {
-		if (PIDautoAngle[0].isEnabled()) {
+		/*if (PIDautoAngle[0].isEnabled()) {
 			setAllPIDControllers(PIDautoAngle, false);
 		}
 		if (PIDautoDistance[0].isEnabled()) {
 			setAllPIDControllers(PIDautoDistance, false);
-		}
+		}*/
 		setAllPIDControllers(PIDdrive, true);
 		
 		encoderDistance.reset();
@@ -806,12 +814,12 @@ public class Robot extends TimedRobot {
 	 */
 	@Override
 	public void testPeriodic() {
-		if (PIDautoAngle[0].isEnabled()) {
+		/*if (PIDautoAngle[0].isEnabled()) {
 			setAllPIDControllers(PIDautoAngle, false);
 		}
 		if (PIDautoDistance[0].isEnabled()) {
 			setAllPIDControllers(PIDautoDistance, false);
-		}
+		}*/
 		if (PIDdrive[0].isEnabled()) {
 			setAllPIDControllers(PIDdrive, false);
 		}
