@@ -22,7 +22,7 @@ import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.PIDController;
 import edu.wpi.first.wpilibj.SPI;
-import edu.wpi.first.wpilibj.Servo;
+import edu.wpi.first.wpilibj.Servo; 
 import edu.wpi.first.wpilibj.Spark;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
@@ -123,10 +123,10 @@ public class Robot extends TimedRobot {
 	static boolean limelightInvalidValues = false;															// whether invalid values were found from the limelight
 	static double limelightForceAngle = -1;																	// if specific input is given to attempt to guide to a certain angle
 	// Operator
-	static double pivotSetpoint = 0;						// setpoint for the pivot
-	static double liftSetpoint = 0;							// setpoint for the lift
-	static boolean liftSetpointControl = false;				// whether the lift is operating on setpoint control or not
-	static boolean pivotSetpointControl = true;				// whether the pivot is operating on setpoint control or not
+	static double pivotSetpoint = 0;			// setpoint for the pivot
+	static double liftSetpoint = 0;				// setpoint for the lift
+	static boolean liftSetpointControl = false;	// whether the lift is operating on setpoint control or not
+	static boolean pivotSetpointControl = true;	// whether the pivot is operating on setpoint control or not
 	//=======================================
 	
 	// LIMELIGHT + DATA TABLES
@@ -323,7 +323,7 @@ public class Robot extends TimedRobot {
 		// Ascend the hab (untested), should get us to where we can use the footwheels to drive on, this doesn't complete that action
 		actionQueues[QUEUE_HABASCENT].queueFeed(ActionQueue.Command.SWERVE,1,20,false,.1,0,0);			// turn wheels
 		actionQueues[QUEUE_HABASCENT].queueFeed(ActionQueue.Command.FOOT_EXTEND,50,550,false,2000,1,0);	// this foot value has not been calibrated yet, and neither has the proportional loop which controls it... be careful
-		actionQueues[QUEUE_HABASCENT].queueFeed(ActionQueue.Command.PIVOT,50,550,false,-200,1,0);		// pivot BELOW parallel to keep the robot angled the right way (also not calibrated)
+		actionQueues[QUEUE_HABASCENT].queueFeed(ActionQueue.Command.PIVOT,50,550,false,-50,1,0);		// pivot BELOW parallel to keep the robot angled the right way (also not calibrated)
 		actionQueues[QUEUE_HABASCENT].queueFeed(ActionQueue.Command.LIFT,50,550,false,-.4,0,0);			// lift down using purely powered control
 	}
 	
