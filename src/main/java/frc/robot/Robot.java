@@ -437,6 +437,7 @@ public class Robot extends TimedRobot {
 					jRcw = controlWorking.getRawAxis(4);if (Math.abs(jRcw) < CONTROL_DEADZONE) jRcw = 0;
 					if (!controlWorking.getRawButton(BUTTON_RB)) jRcw /= CONTROL_SPEEDREDUCTION;
 					if (reverseRotate) {jRcw=-jRcw;}
+					//if (jFwd != 0 && jStr != 0 && jRcw != 0) swerve(jFwd,jStr,jRcw,driverOriented);
 					swerve(jFwd,jStr,jRcw,driverOriented);
 				} else {
 					/*
