@@ -482,6 +482,21 @@ public class Robot extends TimedRobot {
 				if (driverOriented == true) driverOriented = false; else driverOriented = true;
 			}
 
+			// Emergency wheel adjustment mode
+			if (controlWorking.getRawButtonPressed(BUTTON_SELECT) && controlWorking.getRawButtonPressed(BUTTON_START)) {
+				if (emergencyReadjust) {
+					emergencyReadjust = false;
+					setAllPIDControllers(PIDdrive, true);
+					resetAllWheels();
+					setAllPIDSetpoints(PIDdrive, 0);
+					encoderAngle[0].reset();encoderAngle[1].reset();encoderAngle[2].reset();encoderAngle[3].reset();
+				} else {
+					emergencyReadjust = true;
+					setAllPIDControllers(PIDdrive, false);
+				}
+			}
+			if (emergencyReadjust) readjust();
+
 			// LIMELIGHT SEEKING CODE
 			// Toggle Limelight activity
 			if (controlWorking.getRawButtonPressed(BUTTON_LB)) {
@@ -706,9 +721,9 @@ public class Robot extends TimedRobot {
 			if (liftSetpointControl == true) setLift(liftSetpoint);
 
 			// Run the climber
-			if (controlWorking.getRawButton(1)) {
+			if (controlWorking.getRawButton(BUTTON_A)) {
 				motorClimb.set(ControlMode.PercentOutput,-.5);
-			} else if (controlWorking.getRawButton(3)) {
+			} else if (controlWorking.getRawButton(BUTTON_X)) {
 				motorClimb.set(ControlMode.PercentOutput,.5);
 			} else motorClimb.set(ControlMode.PercentOutput,0);
 
@@ -837,6 +852,13 @@ public class Robot extends TimedRobot {
 		SmartDashboard.putNumber("NavX Angle:", ahrs.getAngle());
 		SmartDashboard.putNumber("NavX Raw X:", ahrs.getRawGyroX());
 		
+		readjust();
+	}
+
+	/**
+	 * Readjust the wheels manually
+	 */
+	public void readjust() {
 		if (controlDriver.getRawButton(1)) wheelTune = 0;
 		if (controlDriver.getRawButton(2)) wheelTune = 1;
 		if (controlDriver.getRawButton(3)) wheelTune = 2;
