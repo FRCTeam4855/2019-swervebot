@@ -480,6 +480,7 @@ public class Robot extends TimedRobot {
 			if (controlWorking.getRawButtonPressed(BUTTON_A)) {
 				if (driverOriented == true) driverOriented = false; else driverOriented = true;
 			}
+			
 
 			// LIMELIGHT SEEKING CODE
 			// Toggle Limelight activity
