@@ -49,10 +49,10 @@ public class Robot extends TimedRobot {
 	final static double CONTROL_LIFTLEVEL3 = 14500;			// level 3 encoder value
 
 	final double CONTROL_CAM_MOE = 5.2;	          			// margin of lateral error for the lateral alignment process for the limelight
-	final double CONTROL_CAM_ANGLETHRESHOLD = 4;			// the limelight allows the robot to be +- this value off from its target angle and still call it good
+	final double CONTROL_CAM_ANGLETHRESHOLD = 5;			// the limelight allows the robot to be +- this value off from its target angle and still call it good
 	final boolean CONTROL_CAM_INTERRUPTRECOVERY = true;		// whether or not interruption recovery should be enabled or not
 	final static int CONTROL_CAM_INTERRUPTRECOVERYTIME = 30;// the maximum amount of time to give the camera to recover its reading on the target
-	final double CONTROL_CAM_ANGLEPIDANGLE = .01;			// the proportional value for adjusting the angle during the angular phase
+	final double CONTROL_CAM_ANGLEPIDANGLE = .038;			// the proportional value for adjusting the angle during the angular phase
 	final double CONTROL_CAM_STRAFEPIDANGLE = .002;			// the proportional value for adjusting the angle during the strafing phase
 	final double CONTROL_CAM_FWDPIDANGLE = .003;			// the proportional value for adjusting the angle during the strafing phase
 	final double CONTROL_CAM_STRAFEPIDSTRAFE = .0412;		// the proportional value for strafing during the strafing phase
@@ -203,7 +203,7 @@ public class Robot extends TimedRobot {
 	// Blinkin LED Driver
 
 	// option 1
-	Spark sparkLeds = new Spark(10);
+	Spark sparkLeds = new Spark(9);
 	Blinkin leds = new Blinkin(sparkLeds);
 	
 	// option 2 (don't even bother this is stupid)
@@ -301,15 +301,15 @@ public class Robot extends TimedRobot {
 
 		// Place hatch (almost functional)
 		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,1,24,false,.22,0,0);		// turn wheels forward
-		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,1,84,false,-135,1,0);		// make sure pivot is parallel with ground
+		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,1,84,false,135,1,0);		// make sure pivot is parallel with ground
 		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,25,75,false,.48,0,0);		// move towards target assuming we're lined up
 		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.HATCH_INTAKE,95,96,false,0,0,0);	// release the hatch
 		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,140,200,false,-.38,0,0);	// back up
-		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,150,200,false,-60,1,0);		// pivot down just a touch
+		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,150,200,false,60,1,0);		// pivot down just a touch
 		
 		// Grab hatch (not working and not properly calibrated, do not run)
 		actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.HATCH_INTAKE,1,2,false,0,0,0);		// make sure intake is open
-		actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.PIVOT,1,41,false,-100,1,0);			// make sure pivot is parallel with ground
+		actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.PIVOT,1,41,false,100,1,0);			// make sure pivot is parallel with ground
 		actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.SWERVE,30,60,false,.48,0,0);		// push forward a bit
 		actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.HATCH_INTAKE,70,71,false,1,0,0);	// assuming we've speared already, grab the hatch
 		actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.PIVOT,95,115,false,810,1,0);		// pull hatch out
@@ -323,7 +323,7 @@ public class Robot extends TimedRobot {
 		// Ascend the hab (untested), should get us to where we can use the footwheels to drive on, this doesn't complete that action
 		actionQueues[QUEUE_HABASCENT].queueFeed(ActionQueue.Command.SWERVE,1,20,false,.1,0,0);			// turn wheels
 		actionQueues[QUEUE_HABASCENT].queueFeed(ActionQueue.Command.FOOT_EXTEND,50,550,false,2000,1,0);	// this foot value has not been calibrated yet, and neither has the proportional loop which controls it... be careful
-		actionQueues[QUEUE_HABASCENT].queueFeed(ActionQueue.Command.PIVOT,50,550,false,-50,1,0);		// pivot BELOW parallel to keep the robot angled the right way (also not calibrated)
+		actionQueues[QUEUE_HABASCENT].queueFeed(ActionQueue.Command.PIVOT,50,550,false,50,1,0);		// pivot BELOW parallel to keep the robot angled the right way (also not calibrated)
 		actionQueues[QUEUE_HABASCENT].queueFeed(ActionQueue.Command.LIFT,50,550,false,-.4,0,0);			// lift down using purely powered control
 	}
 	
@@ -351,6 +351,8 @@ public class Robot extends TimedRobot {
 		if (1 < matchTime && matchTime <= 130) leds.setLEDs(Blinkin.STROBE_RED);
 		if (matchTime > 130) leds.setLEDs(Blinkin.RAINBOW_RAINBOWPALETTE);
 		SmartDashboard.putNumber("LEDnumber",leds.getLEDs());
+
+		//SmartDashboard.getNumber("Match Mode", 1);
 	}
 	
 	/**
@@ -363,7 +365,7 @@ public class Robot extends TimedRobot {
 		encoderDistance.reset();
 		ahrs.reset();
 
-		init();
+		init(false);
 	}
 
 	/**
@@ -381,7 +383,7 @@ public class Robot extends TimedRobot {
 	 * This function is called when teleop begins
 	 */
 	public void teleopInit() {
-		init();
+		init(true);
 	}
 	
 	/**
@@ -395,7 +397,7 @@ public class Robot extends TimedRobot {
 	/**
 	 * This should be run whenever the robot is being enabled
 	 */
-	public void init() {
+	public void init(boolean fromSandstorm) {
 		if (PIDautoAngle[0].isEnabled()) {
 			setAllPIDControllers(PIDautoAngle, false);
 		}
@@ -409,16 +411,18 @@ public class Robot extends TimedRobot {
 		wheelSpeedTimer.start();
 		wheelSpeedTimer.reset();
 		
-		ahrs.reset();
-		encoderAngle[0].reset();encoderAngle[1].reset();encoderAngle[2].reset();encoderAngle[3].reset();
-		resetAllWheels();
-
+		if (!fromSandstorm) {
+			encoderAngle[0].reset();encoderAngle[1].reset();encoderAngle[2].reset();encoderAngle[3].reset();
+			resetAllWheels();
+			pivotSetpoint = 0;motorPivot.setSelectedSensorPosition(0);
+			liftSetpoint = 0;motorLift.setSelectedSensorPosition(0);
+			liftSetpointControl = false;pivotSetpointControl = false;
+			ahrs.reset();
+		} else {
+			limelightActive = false;
+		}
 		limelightGuideMode = 0;
 		driverOriented = true;
-
-		pivotSetpoint = 0;motorPivot.setSelectedSensorPosition(0);
-		liftSetpoint = 0;motorLift.setSelectedSensorPosition(0);
-		liftSetpointControl = false;pivotSetpointControl = false;
 	}
 
 	/**
@@ -440,10 +444,11 @@ public class Robot extends TimedRobot {
 					jRcw = controlWorking.getRawAxis(4);if (Math.abs(jRcw) < CONTROL_DEADZONE) jRcw = 0;
 					if (!controlWorking.getRawButton(BUTTON_RB)) jRcw /= CONTROL_SPEEDREDUCTION;
 					if (reverseRotate) {jRcw=-jRcw;}
-					if (jFwd != 0 && jStr != 0 && jRcw != 0) swerve(jFwd,jStr,jRcw,driverOriented);
+					//if (jFwd != 0 && jStr != 0 && jRcw != 0) swerve(jFwd,jStr,jRcw,driverOriented);
+					swerve(jFwd,jStr,jRcw,driverOriented);
 				} else if (controlWorking.getRawButton(BUTTON_LSTICK) && controlWorking.getRawButton(BUTTON_RSTICK)) {
 					// Autotilt correction, untested and unchanged from 2018 at the moment
-					driverOriented = false;
+					/*driverOriented = false;
 					if (ahrs.getRoll() >= 2) {
 						swerve(0,0.5,0,false);
 					} else if (ahrs.getRoll() <= -2) {
@@ -452,7 +457,7 @@ public class Robot extends TimedRobot {
 						swerve(0.5,0,0,false);
 					} else if (ahrs.getPitch() <= -2) {
 						swerve(-0.5,0,0,false);
-					}
+					}*/
 				}
 			} else {
 				setAllPIDSetpoints(PIDdrive, 0);
@@ -554,6 +559,12 @@ public class Robot extends TimedRobot {
 									if (-CONTROL_CAM_ANGLETHRESHOLD < limelightGoalAngle && limelightGoalAngle < CONTROL_CAM_ANGLETHRESHOLD) limelightPIDAngle = 0;	// if I'm close enough to the target angle then don't bother adjusting it
 									swerve(0,0,limelightPIDAngle,false);	// actual move function
 								}
+
+								// Proceed to the next step
+								if ((Math.abs(ahrs.getYaw()) - limelightGoalAngle < CONTROL_CAM_ANGLETHRESHOLD)/* && (-CONTROL_CAM_ANGLETHRESHOLD + limelightGoalAngle < ahrs.getYaw() && ahrs.getYaw() < CONTROL_CAM_ANGLETHRESHOLD + limelightGoalAngle)*/) {	// if I'm laterally within margin of error and my angle is within threshold
+									limelightPhase = 2;
+									limelightInputTimer = 20;
+								}
 							}
 
 							// Phase 2: line up laterally with the target
@@ -568,7 +579,8 @@ public class Robot extends TimedRobot {
 									if (Math.signum(ahrs.getYaw()) != Math.signum(limelightGoalAngle)) limelightGoalAngle *= Math.signum(ahrs.getYaw());	// if the angle I want is negative and I'm positive then change the target to my angle
 								} else {
 									if (Math.signum(ahrs.getYaw()) != Math.signum(limelightGoalAngle)) limelightGoalAngle *= Math.signum(ahrs.getYaw());	// if the angle I want is negative and I'm positive then change the target to my angle
-									limelightPIDAngle = -proportionalLoop(CONTROL_CAM_STRAFEPIDANGLE,ahrs.getYaw(),limelightGoalAngle);	// find the motor speed required to reach my target angle
+									//limelightPIDAngle = -proportionalLoop(CONTROL_CAM_STRAFEPIDANGLE,ahrs.getYaw(),limelightGoalAngle);	// find the motor speed required to reach my target angle
+									limelightPIDAngle = 0;
 									if (-CONTROL_CAM_ANGLETHRESHOLD < limelightGoalAngle && limelightGoalAngle < CONTROL_CAM_ANGLETHRESHOLD) limelightPIDAngle = 0;	// if I'm close enough to the target angle then don't bother adjusting it
 									swerve(0,proportionalLoop(CONTROL_CAM_STRAFEPIDSTRAFE,limelightX,0),limelightPIDAngle,false);	// actual move function
 								}
@@ -588,7 +600,8 @@ public class Robot extends TimedRobot {
 									swerve(.2,.09,0,false);
 									if (limelightForceAngle == -1) limelightGoalAngle = 90 * Math.round(ahrs.getYaw() / 90); else limelightGoalAngle = limelightForceAngle; // the goal angle is always going to be at some 45 degree angle so round yaw to the nearest 45
 								} else {
-									limelightPIDAngle = -proportionalLoop(CONTROL_CAM_FWDPIDANGLE,ahrs.getYaw(),limelightGoalAngle);	// find the motor speed required to reach my target angle
+									//limelightPIDAngle = -proportionalLoop(CONTROL_CAM_FWDPIDANGLE,ahrs.getYaw(),limelightGoalAngle);	// find the motor speed required to reach my target angle
+									limelightPIDAngle = 0;
 									swerve(-proportionalLoop(CONTROL_CAM_FWDPIDFWD,limelightArea,CONTROL_CAM_FWDAREATHRESHOLD),proportionalLoop(CONTROL_CAM_FWDPIDSTRAFE,limelightX,0),limelightPIDAngle,false);
 								}
 								// Proceed to next step
@@ -663,21 +676,24 @@ public class Robot extends TimedRobot {
 					if (CONTROL_CAM_INTERRUPTRECOVERY == false) limelightKillSeeking(); else if (limelightSeeking == true && limelightTargetFound == false) {
 						switch (limelightPhase) {
 							case 1:
+								// Rotate to the target as normal
+								swerve(0,0,-proportionalLoop(CONTROL_CAM_ANGLEPIDANGLE,ahrs.getYaw(),limelightGoalAngle),false);
+							case 2:
 								// Strafe to target, don't bother with the angular piece
 								swerve(0,proportionalLoop(CONTROL_CAM_STRAFEPIDSTRAFE * .70,limelightInterX,0),0,false);	// Strafing speed is reduced to 70% in case we're overshooting the target during this process on accident
 								break;
-							case 2:
+							case 3:
 								// Move forward towards target, strafe just a little bit but not much
 								swerve(proportionalLoop(CONTROL_CAM_FWDPIDFWD * .70,limelightInterArea,CONTROL_CAM_FWDAREATHRESHOLD),proportionalLoop(CONTROL_CAM_FWDPIDSTRAFE * .60,limelightInterX,0),CONTROL_CAM_FWDANGLECORRECT,false);	// Forward speed is reduced to 70%
 								break;
 						}
 						// Experimental - switch to phase 2 if we deem that we're ready
 						// Specifically, this checks if the x val is already within a slightly broader MOE, OR if a certain amount of time has passed and we're within an even broader MOE (assuming we've moved far enough to compensate)
-						if (limelightPhase == 1 && ((Math.abs(limelightInterX) > CONTROL_CAM_MOE + 1.5 && Math.abs(limelightInterX) < CONTROL_CAM_MOE + 4 && limelightInterTimer / CONTROL_CAM_INTERRUPTRECOVERYTIME <= .5) || Math.abs(limelightInterX) <= CONTROL_CAM_MOE + 1.5)) {
-							limelightPhase = 2;
+						if (limelightPhase == 2 && ((Math.abs(limelightInterX) > CONTROL_CAM_MOE + 1.5 && Math.abs(limelightInterX) < CONTROL_CAM_MOE + 4 && limelightInterTimer / CONTROL_CAM_INTERRUPTRECOVERYTIME <= .5) || Math.abs(limelightInterX) <= CONTROL_CAM_MOE + 1.5)) {
+							limelightPhase = 3;
 						}
 						// Kill seeking if we're close enough to the target in phase 2 anyway
-						if (limelightPhase == 2 && limelightInterArea >= CONTROL_CAM_AREACLEARANCE) {
+						if (limelightPhase == 3 && limelightInterArea >= CONTROL_CAM_AREACLEARANCE) {
 							limelightKillSeeking();
 							System.out.println("seeking ended in recovery mode - target was presumably reached");
 						}
@@ -728,14 +744,10 @@ public class Robot extends TimedRobot {
 			} else motorClimb.set(ControlMode.PercentOutput,0);
 
 			// Run the hatch intake
-			if (controlWorking.getRawButton(BUTTON_LB)) {
+			if (controlWorking.getRawButton(BUTTON_LB) || controlWorking.getRawButton(BUTTON_RB)) {
 				// Open solenoid
 				solenoidHatchIntake.set(DoubleSolenoid.Value.kReverse);
-			}
-			if (controlWorking.getRawButton(BUTTON_RB)) {
-				// Close solenoid
-				solenoidHatchIntake.set(DoubleSolenoid.Value.kForward);
-			}
+			} else solenoidHatchIntake.set(DoubleSolenoid.Value.kForward); // Close solenoid				
 
 			// Intake wheel control
 			if (controlWorking.getRawAxis(2) >= CONTROL_INTAKE_DEADZONE) {
@@ -751,13 +763,13 @@ public class Robot extends TimedRobot {
 				} else motorPivot.set(ControlMode.PercentOutput,0);
 			} else {
 				if (Math.abs(controlWorking.getRawAxis(1)) >= CONTROL_PIVOT_DEADZONE) {
-					pivotSetpoint += controlWorking.getRawAxis(1) * 6.5;
+					pivotSetpoint -= controlWorking.getRawAxis(1) * 6.5;
 				}
 			}
 
 			// Level pivot to eject a cargo
 			if (controlWorking.getPOV() == 180) {
-				pivotSetpoint = -410;
+				pivotSetpoint = 410;
 				pivotSetpointControl = true;
 			}
 
@@ -819,7 +831,8 @@ public class Robot extends TimedRobot {
 		SmartDashboard.putBoolean("DriverOriented",driverOriented);
 
 		// LED functions
-		if (limelightSeeking == false) leds.setLEDs(Blinkin.C1_LARSONSCAN); else leds.setLEDs(Blinkin.LIGHTCHASE_RED);	// rudimentary for now
+		//if (limelightSeeking == false) leds.setLEDs(Blinkin.C1_LARSONSCAN); else leds.setLEDs(Blinkin.LIGHTCHASE_RED);	// rudimentary for now
+		if (limelightSeeking == false) sparkLeds.set(-.99); else sparkLeds.set(.09);
 
 		// End UNIVERSAL FUNCTIONS
 	}
@@ -1071,6 +1084,7 @@ public class Robot extends TimedRobot {
 		SmartDashboard.putNumber("LimelightHeight", limelightHeight);
 		SmartDashboard.putNumber("LimelightEstAngle",limelightEstAngle);
 		SmartDashboard.putNumber("LimelightProp",limelightProp);
+		SmartDashboard.putBoolean("LimleightValid",limelightInvalidValues);
 	}
 
 	/**
@@ -1119,7 +1133,7 @@ public class Robot extends TimedRobot {
 	public static void setPivot(double setpoint) {
 		double p;
 		if (motorPivot.getSelectedSensorPosition() > 0 && motorPivot.getSelectedSensorPosition() < 200) p = .015; else p = .025;
-		motorPivot.set(ControlMode.PercentOutput,proportionalLoop(p, motorPivot.getSelectedSensorPosition() / 5, setpoint / 5));
+		motorPivot.set(ControlMode.PercentOutput,-proportionalLoop(p, motorPivot.getSelectedSensorPosition() / 5, setpoint / 5));
 	}
 	
 	/**
