@@ -301,7 +301,7 @@ public class Robot extends TimedRobot {
 
 		// Place hatch (almost functional)
 		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,1,24,false,.22,0,0);		// turn wheels forward
-		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,1,84,false,135,1,0);		// make sure pivot is parallel with ground
+		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,1,84,false,135,1,0);			// make sure pivot is parallel with ground
 		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,25,75,false,.48,0,0);		// move towards target assuming we're lined up
 		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.HATCH_INTAKE,95,96,false,0,0,0);	// release the hatch
 		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,140,200,false,-.38,0,0);	// back up
@@ -323,7 +323,7 @@ public class Robot extends TimedRobot {
 		// Ascend the hab (untested), should get us to where we can use the footwheels to drive on, this doesn't complete that action
 		actionQueues[QUEUE_HABASCENT].queueFeed(ActionQueue.Command.SWERVE,1,20,false,.1,0,0);			// turn wheels
 		actionQueues[QUEUE_HABASCENT].queueFeed(ActionQueue.Command.FOOT_EXTEND,50,550,false,2000,1,0);	// this foot value has not been calibrated yet, and neither has the proportional loop which controls it... be careful
-		actionQueues[QUEUE_HABASCENT].queueFeed(ActionQueue.Command.PIVOT,50,550,false,50,1,0);		// pivot BELOW parallel to keep the robot angled the right way (also not calibrated)
+		actionQueues[QUEUE_HABASCENT].queueFeed(ActionQueue.Command.PIVOT,50,550,false,50,1,0);			// pivot BELOW parallel to keep the robot angled the right way (also not calibrated)
 		actionQueues[QUEUE_HABASCENT].queueFeed(ActionQueue.Command.LIFT,50,550,false,-.4,0,0);			// lift down using purely powered control
 	}
 	
