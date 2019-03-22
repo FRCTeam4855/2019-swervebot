@@ -407,7 +407,8 @@ public class Robot extends TimedRobot {
 		setAllPIDControllers(PIDdrive, true);
 		
 		encoderDistance.reset();
-		
+		actionQueues[QUEUE_PLACEHATCH].queueStop();	// TODO should probably move this to the !fromSandstorm block
+
 		wheelSpeedTimer.start();
 		wheelSpeedTimer.reset();
 		
@@ -419,7 +420,7 @@ public class Robot extends TimedRobot {
 			liftSetpointControl = false;pivotSetpointControl = false;
 			ahrs.reset();
 		} else {
-			limelightActive = false;
+			//limelightActive = false;
 		}
 		limelightGuideMode = 0;
 		driverOriented = true;
@@ -445,7 +446,7 @@ public class Robot extends TimedRobot {
 					if (!controlWorking.getRawButton(BUTTON_RB)) jRcw /= CONTROL_SPEEDREDUCTION;
 					if (reverseRotate) {jRcw=-jRcw;}
 					//if (jFwd != 0 && jStr != 0 && jRcw != 0) swerve(jFwd,jStr,jRcw,driverOriented);
-					swerve(jFwd,jStr,jRcw,driverOriented);
+					if (!actionQueues[QUEUE_PLACEHATCH].queueRunning()) swerve(jFwd,jStr,jRcw,driverOriented);
 				} else if (controlWorking.getRawButton(BUTTON_LSTICK) && controlWorking.getRawButton(BUTTON_RSTICK)) {
 					// Autotilt correction, untested and unchanged from 2018 at the moment
 					/*driverOriented = false;
@@ -791,7 +792,7 @@ public class Robot extends TimedRobot {
 
 			// Auto hatch place
 			if (controlWorking.getRawButton(BUTTON_SELECT)) {
-				if (!actionQueues[QUEUE_PLACEHATCH].queueRunning()) actionQueues[QUEUE_PLACEHATCH].queueStart(); else actionQueues[QUEUE_PLACEHATCH].queueStop();
+				if (!actionQueues[QUEUE_PLACEHATCH].queueRunning()) actionQueues[QUEUE_PLACEHATCH].queueStart();/* else actionQueues[QUEUE_PLACEHATCH].queueStop();*/	// TODO uncomment this when we fix everything
 			}
 		}
 
