@@ -833,8 +833,34 @@ public class Robot extends TimedRobot {
 
 		// LED functions
 		//if (limelightSeeking == false) leds.setLEDs(Blinkin.C1_LARSONSCAN); else leds.setLEDs(Blinkin.LIGHTCHASE_RED);	// rudimentary for now
-		if (limelightSeeking == false) sparkLeds.set(-.99); else sparkLeds.set(.09);
-
+		// MANUALLY operate the lights directly from the Spark controller
+		if (limelightSeeking == true) {
+			sparkLeds.set(.93);	// solid white, alternative is solid gold .67
+		} else if (actionQueues[QUEUE_HATCHPLACE].queueRunning()) {
+			sparkLeds.set(-.07);	// gold strobe
+		} else if (controlDriver.getRawButton(BUTTON_RB)) {
+			sparkLeds.set(-.05);	// white strobe
+		} else {
+			//if (pivotSetpointControl) sparkLeds.set(); else sparkLeds.set();	// some color and some other color (experimental)
+			//if (matchTime >= 120) sparkLeds.set(-.99);	// rainbow during endgame (experimental)
+			//if (matchTime <= 15) sparkLeds.set(.05);	// purple heartbeat during sandstorm (experimental), alternative is fire large -.57
+			sparkLeds.set(-.01);	// purple larson scanner, alternative is C1&2 sinelon .55
+		}
+		
+		// Use the Blinkin controller we made instead
+		/*if (limelightSeeking == true) {
+			leds.setLEDs(Blinkin.WHITE);	// alternative is GOLD
+		} else if (actionQueues[QUEUE_HATCHPLACE].queueRunning()) {
+			sparkLeds.set(Blinkin.STROBE_GOLD);
+		} else if (controlDriver.getRawButton(BUTTON_RB)) {
+			sparkLeds.set(Blinkin.STROBE_WHITE);
+		} else {
+			//if (pivotSetpointControl) sparkLeds.set(); else sparkLeds.set();	// some color and some other color (experimental)
+			//if (matchTime >= 120) sparkLeds.set(Blinkin.RAINBOW_RAINBOWPALETTE);	// rainbow during endgame (experimental)
+			//if (matchTime <= 15) sparkLeds.set(C1_HEARTBEAT_MEDIUM);	// purple heartbeat during sandstorm (experimental), alternative is FIRE_LARGE
+			sparkLeds.set(Blinkin.C1_LARSONSCAN);	// purple larson scanner, alternative is C1_AND_C2_SINELON
+		}*/
+		
 		// End UNIVERSAL FUNCTIONS
 	}
 
