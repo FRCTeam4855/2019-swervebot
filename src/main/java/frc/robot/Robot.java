@@ -303,9 +303,10 @@ public class Robot extends TimedRobot {
 		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,1,24,false,.22,0,0);		// turn wheels forward
 		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,1,84,false,135,1,0);			// make sure pivot is parallel with ground
 		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,25,75,false,.48,0,0);		// move towards target assuming we're lined up
+		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,76,139,false,0,0,0);		// kill the swerves
 		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.HATCH_INTAKE,95,96,false,0,0,0);	// release the hatch
-		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,140,200,false,-.38,0,0);	// back up
-		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,150,200,false,60,1,0);		// pivot down just a touch
+		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.SWERVE,140,170,false,-.38,0,0);	// back up
+		actionQueues[QUEUE_PLACEHATCH].queueFeed(ActionQueue.Command.PIVOT,150,190,false,60,1,0);		// pivot down just a touch
 		
 		// Grab hatch (not working and not properly calibrated, do not run)
 		actionQueues[QUEUE_GRABHATCH].queueFeed(ActionQueue.Command.HATCH_INTAKE,1,2,false,0,0,0);		// make sure intake is open
@@ -347,9 +348,9 @@ public class Robot extends TimedRobot {
 	 * This function is called periodically while disabled
 	 */
 	public void disabledPeriodic() {
-		if (matchTime == 0) leds.setLEDs(Blinkin.C1_AND_C2_GRADIENT);
+		/*if (matchTime == 0) leds.setLEDs(Blinkin.C1_AND_C2_GRADIENT);
 		if (1 < matchTime && matchTime <= 130) leds.setLEDs(Blinkin.STROBE_RED);
-		if (matchTime > 130) leds.setLEDs(Blinkin.RAINBOW_RAINBOWPALETTE);
+		if (matchTime > 130) leds.setLEDs(Blinkin.RAINBOW_RAINBOWPALETTE);*/
 		SmartDashboard.putNumber("LEDnumber",leds.getLEDs());
 
 		//SmartDashboard.getNumber("Match Mode", 1);
@@ -562,7 +563,7 @@ public class Robot extends TimedRobot {
 								}
 
 								// Proceed to the next step
-								if ((Math.abs(ahrs.getYaw()) - limelightGoalAngle < CONTROL_CAM_ANGLETHRESHOLD)/* && (-CONTROL_CAM_ANGLETHRESHOLD + limelightGoalAngle < ahrs.getYaw() && ahrs.getYaw() < CONTROL_CAM_ANGLETHRESHOLD + limelightGoalAngle)*/) {	// if I'm laterally within margin of error and my angle is within threshold
+								if ((Math.abs(ahrs.getYaw()) - Math.abs(limelightGoalAngle) < CONTROL_CAM_ANGLETHRESHOLD)/* && (-CONTROL_CAM_ANGLETHRESHOLD + limelightGoalAngle < ahrs.getYaw() && ahrs.getYaw() < CONTROL_CAM_ANGLETHRESHOLD + limelightGoalAngle)*/) {	// if I'm laterally within margin of error and my angle is within threshold
 									limelightPhase = 2;
 									limelightInputTimer = 20;
 								}
@@ -745,10 +746,14 @@ public class Robot extends TimedRobot {
 			} else motorClimb.set(ControlMode.PercentOutput,0);
 
 			// Run the hatch intake
-			if (controlWorking.getRawButton(BUTTON_LB) || controlWorking.getRawButton(BUTTON_RB)) {
+			if (controlWorking.getRawButton(BUTTON_LB)) {
 				// Open solenoid
 				solenoidHatchIntake.set(DoubleSolenoid.Value.kReverse);
-			} else solenoidHatchIntake.set(DoubleSolenoid.Value.kForward); // Close solenoid				
+			}
+			if (controlWorking.getRawButton(BUTTON_RB)) {
+				// Close solenoid
+				solenoidHatchIntake.set(DoubleSolenoid.Value.kForward);			
+			}
 
 			// Intake wheel control
 			if (controlWorking.getRawAxis(2) >= CONTROL_INTAKE_DEADZONE) {
@@ -792,7 +797,7 @@ public class Robot extends TimedRobot {
 
 			// Auto hatch place
 			if (controlWorking.getRawButton(BUTTON_SELECT)) {
-				if (!actionQueues[QUEUE_PLACEHATCH].queueRunning()) actionQueues[QUEUE_PLACEHATCH].queueStart();/* else actionQueues[QUEUE_PLACEHATCH].queueStop();*/	// TODO uncomment this when we fix everything
+				if (!actionQueues[QUEUE_PLACEHATCH].queueRunning()) actionQueues[QUEUE_PLACEHATCH].queueStart(); else actionQueues[QUEUE_PLACEHATCH].queueStop();
 			}
 		}
 
@@ -830,21 +835,22 @@ public class Robot extends TimedRobot {
 		SmartDashboard.putNumber("LEDnumber",leds.getLEDs());
 		SmartDashboard.putBoolean("PivotSetpointCtrl",pivotSetpointControl);
 		SmartDashboard.putBoolean("DriverOriented",driverOriented);
+		SmartDashboard.putNumber("MatchTime",matchTime);
 
 		// LED functions
 		//if (limelightSeeking == false) leds.setLEDs(Blinkin.C1_LARSONSCAN); else leds.setLEDs(Blinkin.LIGHTCHASE_RED);	// rudimentary for now
 		// MANUALLY operate the lights directly from the Spark controller
 		if (limelightSeeking == true) {
 			sparkLeds.set(.93);	// solid white, alternative is solid gold .67
-		} else if (actionQueues[QUEUE_HATCHPLACE].queueRunning()) {
+		} else if (actionQueues[QUEUE_PLACEHATCH].queueRunning()) {
 			sparkLeds.set(-.07);	// gold strobe
 		} else if (controlDriver.getRawButton(BUTTON_RB)) {
 			sparkLeds.set(-.05);	// white strobe
 		} else {
-			//if (pivotSetpointControl) sparkLeds.set(); else sparkLeds.set();	// some color and some other color (experimental)
-			//if (matchTime >= 120) sparkLeds.set(-.99);	// rainbow during endgame (experimental)
-			//if (matchTime <= 15) sparkLeds.set(.05);	// purple heartbeat during sandstorm (experimental), alternative is fire large -.57
-			sparkLeds.set(-.01);	// purple larson scanner, alternative is C1&2 sinelon .55
+			if (driverOriented) sparkLeds.set(.01); else sparkLeds.set(.21);	// some color and some other color (experimental)
+			if (matchTime >= 120) sparkLeds.set(-.79);	// sinelon rainbow during endgame (experimental)
+			if (matchTime <= 15) sparkLeds.set(-.57);	// fire large during sandstorm -.57
+			//sparkLeds.set(.55);	// purple larson scanner, alternative is C1&2 sinelon .55
 		}
 		
 		// Use the Blinkin controller we made instead
