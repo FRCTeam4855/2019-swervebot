@@ -16,6 +16,7 @@ import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.can.TalonSRX;
 import com.kauailabs.navx.frc.AHRS;
 
+import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Encoder;
@@ -27,6 +28,7 @@ import edu.wpi.first.wpilibj.Spark;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.cscore.UsbCamera;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
@@ -38,6 +40,7 @@ public class Robot extends TimedRobot {
 	// CONTROL CONSTANTS
 
 	final double CONTROL_SPEEDREDUCTION = 2; 	  			// teleop drivetrain inputs are divided by this number when turbo is NOT engaged
+	final double CONTROL_SPEEDREDUCTION_PRECISION = 3.2;	// teleop drivetrain inputs are divided by this number when precision trigger is engaged
 	final double CONTROL_DEADZONE = 0.21;       			// minimum value before joystick inputs will be considered on the swerves
 	final double CONTROL_LIFT_DEADZONE = 0.3;   			// minimum value before joystick inputs will be considered on the lift
 	final double CONTROL_LIFT_PRECISION_FACTOR = 2; 		// lift input is divided by this value when in precision mode
@@ -103,6 +106,7 @@ public class Robot extends TimedRobot {
 	boolean driverOriented = true; 					// true = driver oriented, false = robot oriented
 	static double matchTime = 0;					// the calculated match time from the driver station
 	boolean emergencyReadjust = false;				// if hell has come to earth and you need to manually adjust wheels during a match, this will be enabled
+	String playType = "MATCH";						// whether to act as if in a match ("MATCH") or testing ("TEST")
 	// All for calculating wheel speed/angle, if you need to read from a motor don't pull from these
 	static double a, b, c, d, max, temp, rads; 
 	static double encoderSetpointA, encoderSetpointB, encoderSetpointC, encoderSetpointD;
@@ -153,6 +157,9 @@ public class Robot extends TimedRobot {
 	//=======================================
 
 	// DEFINING HARDWARE
+
+	// Camera
+	UsbCamera camera;
 
 	// Magnetic encoders
 	static Encoder encoderAngle[] = {
@@ -293,6 +300,13 @@ public class Robot extends TimedRobot {
 		motorPivot.setInverted(true);
 		motorClimb.setSelectedSensorPosition(0);
 
+		// Configure USB camera
+		camera = CameraServer.getInstance().startAutomaticCapture(0);
+		camera.setBrightness(20);
+		camera.setExposureManual(50);
+		camera.setResolution(160, 120);
+		camera.setFPS(17);
+
 		// Feed action queues, they hunger for your command
 		// Test, does basically nothing
 		actionQueues[QUEUE_TEST].queueFeed(ActionQueue.Command.PIVOT,1,50,false,.2,0,0);
@@ -353,7 +367,8 @@ public class Robot extends TimedRobot {
 		if (matchTime > 130) leds.setLEDs(Blinkin.RAINBOW_RAINBOWPALETTE);*/
 		SmartDashboard.putNumber("LEDnumber",leds.getLEDs());
 
-		//SmartDashboard.getNumber("Match Mode", 1);
+		//SmartDashboard.putString("Match Mode", playType);
+		//playType = SmartDashboard.getString("Match Mode", "MATCH");
 	}
 	
 	/**
@@ -377,13 +392,14 @@ public class Robot extends TimedRobot {
 		//SmartDashboard.putNumber("Gyro", ahrs.getYaw());
 		//SmartDashboard.putNumber("CIMCODER",encoderDistance.get());
 		matchTime = DriverStation.getInstance().getMatchTime();
-		periodic();
+		periodic(true);
 	}
 	
 	/**
 	 * This function is called when teleop begins
 	 */
 	public void teleopInit() {
+		//if (playType == "MATCH") init(true); else init(false);
 		init(true);
 	}
 	
@@ -392,7 +408,7 @@ public class Robot extends TimedRobot {
 	 */
 	@Override
 	public void teleopPeriodic() {
-		periodic();
+		periodic(false);
 	}
 
 	/**
@@ -415,10 +431,11 @@ public class Robot extends TimedRobot {
 		
 		if (!fromSandstorm) {
 			encoderAngle[0].reset();encoderAngle[1].reset();encoderAngle[2].reset();encoderAngle[3].reset();
-			resetAllWheels();
+			resetAllWheels();killQueues(actionQueues);
 			pivotSetpoint = 0;motorPivot.setSelectedSensorPosition(0);
 			liftSetpoint = 0;motorLift.setSelectedSensorPosition(0);
 			liftSetpointControl = false;pivotSetpointControl = false;
+			motorLift.set(ControlMode.PercentOutput,0);motorPivot.set(ControlMode.PercentOutput,0);
 			ahrs.reset();
 		} else {
 			//limelightActive = false;
@@ -430,7 +447,7 @@ public class Robot extends TimedRobot {
 	/**
 	 * Drives the robot. Run this whenever you want to drive the robot. Everything is here. This is how to drive the robot.
 	 */
-	public void periodic() {
+	public void periodic(boolean sandstormActive) {
 		// Begin DRIVER CONTROL
 		if (INTERFACE_SINGLEDRIVER == false || (INTERFACE_SINGLEDRIVER == true && singleDriverController == 0)) {
 			controlWorking = controlDriver;
@@ -440,11 +457,17 @@ public class Robot extends TimedRobot {
 				if (!limelightSeeking && !emergencyReadjust && (!controlWorking.getRawButton(BUTTON_LSTICK) && !controlWorking.getRawButton(BUTTON_RSTICK))) {
 					// Drive the robot, will adjust driverOriented based on toggled input
 					jFwd = -controlWorking.getRawAxis(1);if (Math.abs(jFwd) < CONTROL_DEADZONE) jFwd = 0;
-					if (!controlWorking.getRawButton(BUTTON_RB)) jFwd /= CONTROL_SPEEDREDUCTION;
+					if (!controlWorking.getRawButton(BUTTON_RB) && controlWorking.getRawAxis(2) < .7) jFwd /= CONTROL_SPEEDREDUCTION;
+					if (controlWorking.getRawAxis(2) >= .7) jFwd /= CONTROL_SPEEDREDUCTION_PRECISION;
+
 					jStr = controlWorking.getRawAxis(0);if (Math.abs(jStr) < CONTROL_DEADZONE) jStr = 0;
-					if (!controlWorking.getRawButton(BUTTON_RB)) jStr /= CONTROL_SPEEDREDUCTION;
+					if (!controlWorking.getRawButton(BUTTON_RB) && controlWorking.getRawAxis(2) < .7) jStr /= CONTROL_SPEEDREDUCTION;
+					if (controlWorking.getRawAxis(2) >= .7) jStr /= CONTROL_SPEEDREDUCTION_PRECISION;
+
 					jRcw = controlWorking.getRawAxis(4);if (Math.abs(jRcw) < CONTROL_DEADZONE) jRcw = 0;
-					if (!controlWorking.getRawButton(BUTTON_RB)) jRcw /= CONTROL_SPEEDREDUCTION;
+					if (!controlWorking.getRawButton(BUTTON_RB) && controlWorking.getRawAxis(2) < .7) jRcw /= CONTROL_SPEEDREDUCTION;
+					if (controlWorking.getRawAxis(2) >= .7) jRcw /= CONTROL_SPEEDREDUCTION_PRECISION;
+
 					if (reverseRotate) {jRcw=-jRcw;}
 					//if (jFwd != 0 && jStr != 0 && jRcw != 0) swerve(jFwd,jStr,jRcw,driverOriented);
 					if (!actionQueues[QUEUE_PLACEHATCH].queueRunning()) swerve(jFwd,jStr,jRcw,driverOriented);
@@ -478,8 +501,8 @@ public class Robot extends TimedRobot {
 			}
 
 			// Foot wheel control
-			if (controlWorking.getRawAxis(2) >= CONTROL_FOOTWHEEL_DEADZONE) {
-				motorFootWheels.set(ControlMode.PercentOutput,controlWorking.getRawAxis(2));
+			if (controlWorking.getPOV() == 90) {
+				motorFootWheels.set(ControlMode.PercentOutput,.65);
 			} else if (controlWorking.getRawAxis(3) >= CONTROL_FOOTWHEEL_DEADZONE) {
 				motorFootWheels.set(ControlMode.PercentOutput,-controlWorking.getRawAxis(3));
 			} else motorFootWheels.set(ControlMode.PercentOutput,0);
@@ -746,13 +769,11 @@ public class Robot extends TimedRobot {
 			} else motorClimb.set(ControlMode.PercentOutput,0);
 
 			// Run the hatch intake
-			if (controlWorking.getRawButton(BUTTON_LB)) {
-				// Open solenoid
-				solenoidHatchIntake.set(DoubleSolenoid.Value.kReverse);
-			}
-			if (controlWorking.getRawButton(BUTTON_RB)) {
-				// Close solenoid
-				solenoidHatchIntake.set(DoubleSolenoid.Value.kForward);			
+			if (!actionQueues[QUEUE_PLACEHATCH].queueRunning()) {
+				if (controlWorking.getRawButton(BUTTON_LB) || controlWorking.getRawButton(BUTTON_RB)) {
+					// Close solenoid
+					solenoidHatchIntake.set(DoubleSolenoid.Value.kForward);
+				} else solenoidHatchIntake.set(DoubleSolenoid.Value.kReverse);	// Open solenoid
 			}
 
 			// Intake wheel control
@@ -821,8 +842,7 @@ public class Robot extends TimedRobot {
 		SmartDashboard.putNumber("PivotSetpoint",pivotSetpoint);
 		SmartDashboard.putNumber("ClimbEncoder",motorClimb.getSelectedSensorPosition());
 		SmartDashboard.putNumber("PivotEncoder",motorPivot.getSelectedSensorPosition());
-		SmartDashboard.putNumber("CIMCODER", encoderDistance.get());
-		SmartDashboard.putNumber("Gyro-Yaw", ahrs.getYaw());
+		//SmartDashboard.putNumber("CIMCODER", encoderDistance.get());
 		SmartDashboard.putNumber("Encoder1:", encoderAngle[0].get());
 		SmartDashboard.putNumber("Encoder2:", encoderAngle[1].get());
 		SmartDashboard.putNumber("Encoder3:", encoderAngle[2].get());
@@ -831,7 +851,7 @@ public class Robot extends TimedRobot {
 		SmartDashboard.putBoolean("limelightActive",limelightActive);
 		SmartDashboard.putBoolean("limelightSeeking",limelightSeeking);
 		SmartDashboard.putNumber("limelightGoalAngle",limelightGoalAngle);
-		SmartDashboard.putNumber("limelightROC",limelightROC);
+		//SmartDashboard.putNumber("limelightROC",limelightROC);
 		SmartDashboard.putNumber("LEDnumber",leds.getLEDs());
 		SmartDashboard.putBoolean("PivotSetpointCtrl",pivotSetpointControl);
 		SmartDashboard.putBoolean("DriverOriented",driverOriented);
@@ -847,9 +867,11 @@ public class Robot extends TimedRobot {
 		} else if (controlDriver.getRawButton(BUTTON_RB)) {
 			sparkLeds.set(-.05);	// white strobe
 		} else {
-			if (driverOriented) sparkLeds.set(.01); else sparkLeds.set(.21);	// some color and some other color (experimental)
-			if (matchTime >= 120) sparkLeds.set(-.79);	// sinelon rainbow during endgame (experimental)
-			if (matchTime <= 15) sparkLeds.set(-.57);	// fire large during sandstorm -.57
+			if (driverOriented) sparkLeds.set(.11); else sparkLeds.set(.31);	// some color and some other color (experimental)
+			if (playType == "MATCH") {
+				if (!sandstormActive && matchTime <= 30) sparkLeds.set(-.45);	// color wave rainbow during endgame (experimental)
+				if (sandstormActive && matchTime <= 15) sparkLeds.set(-.57);	// fire large during sandstorm -.57
+			}
 			//sparkLeds.set(.55);	// purple larson scanner, alternative is C1&2 sinelon .55
 		}
 		
@@ -892,11 +914,11 @@ public class Robot extends TimedRobot {
 		SmartDashboard.putNumber("Encoder3:", encoderAngle[2].get());
 		SmartDashboard.putNumber("Encoder4:", encoderAngle[3].get());
 		
-		SmartDashboard.putNumber("NavX Pitch:", ahrs.getPitch());
+		/*SmartDashboard.putNumber("NavX Pitch:", ahrs.getPitch());
 		SmartDashboard.putNumber("Navx Roll:", ahrs.getRoll());
 		SmartDashboard.putNumber("NavX Yaw:", ahrs.getYaw());
 		SmartDashboard.putNumber("NavX Angle:", ahrs.getAngle());
-		SmartDashboard.putNumber("NavX Raw X:", ahrs.getRawGyroX());
+		SmartDashboard.putNumber("NavX Raw X:", ahrs.getRawGyroX());*/
 		
 		readjust();
 	}
@@ -1115,7 +1137,7 @@ public class Robot extends TimedRobot {
 		SmartDashboard.putBoolean("LimelightTargetFound", limelightTargetFound);
 		SmartDashboard.putNumber("LimelightWidth", limelightWidth);
 		SmartDashboard.putNumber("LimelightHeight", limelightHeight);
-		SmartDashboard.putNumber("LimelightEstAngle",limelightEstAngle);
+		//SmartDashboard.putNumber("LimelightEstAngle",limelightEstAngle);
 		SmartDashboard.putNumber("LimelightProp",limelightProp);
 		SmartDashboard.putBoolean("LimleightValid",limelightInvalidValues);
 	}
