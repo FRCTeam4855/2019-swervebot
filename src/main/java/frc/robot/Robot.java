@@ -29,6 +29,7 @@ import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.cscore.UsbCamera;
+import edu.wpi.cscore.VideoMode.PixelFormat;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
@@ -38,18 +39,19 @@ import edu.wpi.first.networktables.NetworkTableInstance;
 public class Robot extends TimedRobot {
 			
 	// CONTROL CONSTANTS
-
-	final double CONTROL_SPEEDREDUCTION = 2; 	  			// teleop drivetrain inputs are divided by this number when turbo is NOT engaged
+	
+	final double CONTROL_SPEEDREDUCTION = .6; 	  			// teleop drivetrain inputs are multiplied by this number when turbo is NOT engaged
 	final double CONTROL_SPEEDREDUCTION_PRECISION = 3.2;	// teleop drivetrain inputs are divided by this number when precision trigger is engaged
 	final double CONTROL_DEADZONE = 0.21;       			// minimum value before joystick inputs will be considered on the swerves
-	final double CONTROL_LIFT_DEADZONE = 0.3;   			// minimum value before joystick inputs will be considered on the lift
-	final double CONTROL_LIFT_PRECISION_FACTOR = 2; 		// lift input is divided by this value when in precision mode
+	final double CONTROL_LIFT_DEADZONE = 0.16;   			// minimum value before joystick inputs will be considered on the lift
+	final double CONTROL_LIFT_SLOW_FACTOR = .7; 			// lift input is multiplied by this value during normal operation
+	final double CONTROL_LIFT_QUICK_FACTOR = 1;				// lift input is multiplied by this value during turbo operation
 	final double CONTROL_INTAKE_DEADZONE = .15;				// minimum value before trigger inputs will be considered on intake wheels
 	final double CONTROL_PIVOT_DEADZONE = .06;				// minimum value before joystick inputs will be considered on the pivot arm
 	final double CONTROL_FOOTWHEEL_DEADZONE = .12;			// minimum value before trigger inputs will be considered on foot wheels
-	final static double CONTROL_LIFTLEVEL1 = 590;			// level 1 encoder value
-	final static double CONTROL_LIFTLEVEL2 = 8150;			// level 2 encoder value
-	final static double CONTROL_LIFTLEVEL3 = 14500;			// level 3 encoder value
+	final static double CONTROL_LIFTLEVEL1 = 500;			// level 1 encoder value
+	final static double CONTROL_LIFTLEVEL2 = 4000;			// level 2 encoder value
+	final static double CONTROL_LIFTLEVEL3 = 7730;			// level 3 encoder value
 
 	final double CONTROL_CAM_MOE = 5.2;	          			// margin of lateral error for the lateral alignment process for the limelight
 	final double CONTROL_CAM_ANGLETHRESHOLD = 5;			// the limelight allows the robot to be +- this value off from its target angle and still call it good
@@ -167,7 +169,6 @@ public class Robot extends TimedRobot {
 		new Encoder(2,3),
 		new Encoder(6,7),
 		new Encoder(4,5)
-		
 	};
 
 	// Define swerve wheel classes
@@ -209,12 +210,8 @@ public class Robot extends TimedRobot {
 	
 	// Blinkin LED Driver
 
-	// option 1
 	Spark sparkLeds = new Spark(9);
 	Blinkin leds = new Blinkin(sparkLeds);
-	
-	// option 2 (don't even bother this is stupid)
-	// Blinkin leds = new Blinkin(new Servo(0));
 
 	// Lift/Climber
 	static TalonSRX motorPivot = new TalonSRX(1);
@@ -295,7 +292,7 @@ public class Robot extends TimedRobot {
 
 		// Reset lift/climb encoders
 		motorLift.setSelectedSensorPosition(0);
-		motorLift.setInverted(true);
+		//motorLift.setInverted(true);
 		motorPivot.setSelectedSensorPosition(0);
 		motorPivot.setInverted(true);
 		motorClimb.setSelectedSensorPosition(0);
@@ -409,7 +406,7 @@ public class Robot extends TimedRobot {
 	@Override
 	public void teleopPeriodic() {
 		periodic(false);
-	}
+	} 
 
 	/**
 	 * This should be run whenever the robot is being enabled
@@ -457,15 +454,15 @@ public class Robot extends TimedRobot {
 				if (!limelightSeeking && !emergencyReadjust && (!controlWorking.getRawButton(BUTTON_LSTICK) && !controlWorking.getRawButton(BUTTON_RSTICK))) {
 					// Drive the robot, will adjust driverOriented based on toggled input
 					jFwd = -controlWorking.getRawAxis(1);if (Math.abs(jFwd) < CONTROL_DEADZONE) jFwd = 0;
-					if (!controlWorking.getRawButton(BUTTON_RB) && controlWorking.getRawAxis(2) < .7) jFwd /= CONTROL_SPEEDREDUCTION;
+					if (!controlWorking.getRawButton(BUTTON_RB) && controlWorking.getRawAxis(2) < .7) jFwd *= CONTROL_SPEEDREDUCTION;
 					if (controlWorking.getRawAxis(2) >= .7) jFwd /= CONTROL_SPEEDREDUCTION_PRECISION;
 
 					jStr = controlWorking.getRawAxis(0);if (Math.abs(jStr) < CONTROL_DEADZONE) jStr = 0;
-					if (!controlWorking.getRawButton(BUTTON_RB) && controlWorking.getRawAxis(2) < .7) jStr /= CONTROL_SPEEDREDUCTION;
+					if (!controlWorking.getRawButton(BUTTON_RB) && controlWorking.getRawAxis(2) < .7) jStr *= CONTROL_SPEEDREDUCTION;
 					if (controlWorking.getRawAxis(2) >= .7) jStr /= CONTROL_SPEEDREDUCTION_PRECISION;
 
 					jRcw = controlWorking.getRawAxis(4);if (Math.abs(jRcw) < CONTROL_DEADZONE) jRcw = 0;
-					if (!controlWorking.getRawButton(BUTTON_RB) && controlWorking.getRawAxis(2) < .7) jRcw /= CONTROL_SPEEDREDUCTION;
+					if (!controlWorking.getRawButton(BUTTON_RB) && controlWorking.getRawAxis(2) < .7) jRcw *= CONTROL_SPEEDREDUCTION;
 					if (controlWorking.getRawAxis(2) >= .7) jRcw /= CONTROL_SPEEDREDUCTION_PRECISION;
 
 					if (reverseRotate) {jRcw=-jRcw;}
@@ -588,7 +585,7 @@ public class Robot extends TimedRobot {
 								// Proceed to the next step
 								if ((Math.abs(ahrs.getYaw()) - Math.abs(limelightGoalAngle) < CONTROL_CAM_ANGLETHRESHOLD)/* && (-CONTROL_CAM_ANGLETHRESHOLD + limelightGoalAngle < ahrs.getYaw() && ahrs.getYaw() < CONTROL_CAM_ANGLETHRESHOLD + limelightGoalAngle)*/) {	// if I'm laterally within margin of error and my angle is within threshold
 									limelightPhase = 2;
-									limelightInputTimer = 20;
+									limelightInputTimer = 12;
 								}
 							}
 
@@ -612,7 +609,7 @@ public class Robot extends TimedRobot {
 								// Proceed to next step
 								if ((Math.abs(limelightX) < CONTROL_CAM_MOE)/* && (-CONTROL_CAM_ANGLETHRESHOLD + limelightGoalAngle < ahrs.getYaw() && ahrs.getYaw() < CONTROL_CAM_ANGLETHRESHOLD + limelightGoalAngle)*/) {	// if I'm laterally within margin of error and my angle is within threshold
 									limelightPhase = 3;
-									limelightInputTimer = 20;
+									limelightInputTimer = 12;
 								}
 							}
 
@@ -748,7 +745,7 @@ public class Robot extends TimedRobot {
 
 			// Run the lift
 			if (Math.abs(controlWorking.getRawAxis(5)) >= CONTROL_LIFT_DEADZONE) {
-				if (controlWorking.getRawButton(4)) motorLift.set(ControlMode.PercentOutput,controlWorking.getRawAxis(5) / CONTROL_LIFT_PRECISION_FACTOR); else motorLift.set(ControlMode.PercentOutput,controlWorking.getRawAxis(5));
+				if (controlWorking.getRawButton(4)) motorLift.set(ControlMode.PercentOutput,controlWorking.getRawAxis(5) * CONTROL_LIFT_QUICK_FACTOR); else motorLift.set(ControlMode.PercentOutput,controlWorking.getRawAxis(5) * CONTROL_LIFT_SLOW_FACTOR);
 				liftSetpointControl = false;
 			} else if (liftSetpointControl == false) motorLift.set(ControlMode.PercentOutput,0);
 			// Reset lift encoder
@@ -772,8 +769,8 @@ public class Robot extends TimedRobot {
 			if (!actionQueues[QUEUE_PLACEHATCH].queueRunning()) {
 				if (controlWorking.getRawButton(BUTTON_LB) || controlWorking.getRawButton(BUTTON_RB)) {
 					// Close solenoid
-					solenoidHatchIntake.set(DoubleSolenoid.Value.kForward);
-				} else solenoidHatchIntake.set(DoubleSolenoid.Value.kReverse);	// Open solenoid
+					solenoidHatchIntake.set(DoubleSolenoid.Value.kReverse);
+				} else solenoidHatchIntake.set(DoubleSolenoid.Value.kForward);	// Open solenoid
 			}
 
 			// Intake wheel control
@@ -864,15 +861,15 @@ public class Robot extends TimedRobot {
 			sparkLeds.set(.93);	// solid white, alternative is solid gold .67
 		} else if (actionQueues[QUEUE_PLACEHATCH].queueRunning()) {
 			sparkLeds.set(-.07);	// gold strobe
-		} else if (controlDriver.getRawButton(BUTTON_RB)) {
-			sparkLeds.set(-.05);	// white strobe
+		} else if (controlDriver.getRawButton(BUTTON_RB) && !emergencyReadjust) {
+			sparkLeds.set(-.09);	// blue strobe
 		} else {
-			if (driverOriented) sparkLeds.set(.11); else sparkLeds.set(.31);	// some color and some other color (experimental)
-			if (playType == "MATCH") {
-				if (!sandstormActive && matchTime <= 30) sparkLeds.set(-.45);	// color wave rainbow during endgame (experimental)
-				if (sandstormActive && matchTime <= 15) sparkLeds.set(-.57);	// fire large during sandstorm -.57
-			}
+			sparkLeds.set(.11); // purple pulse idle
+			if (!sandstormActive && matchTime <= 30) sparkLeds.set(-.99);	// color wave rainbow during endgame (experimental)
+			if (sandstormActive && matchTime <= 15) sparkLeds.set(-.57);	// fire large during sandstorm -.57
+			if (!driverOriented) sparkLeds.set(.31);
 			//sparkLeds.set(.55);	// purple larson scanner, alternative is C1&2 sinelon .55
+			if (emergencyReadjust == true) sparkLeds.set(.57); // hot pink in emergency readjustment mode
 		}
 		
 		// Use the Blinkin controller we made instead
@@ -1033,7 +1030,7 @@ public class Robot extends TimedRobot {
 			pids[i].setEnabled(enabled);
 		}
 	}
-	
+
 	/**
 	 * Sets the setpoints for an array of four PIDController objects.
 	 * @param pids The array of PID Controllers to set
@@ -1052,7 +1049,7 @@ public class Robot extends TimedRobot {
 	public static void limelightStart(double forceAngle) {
 		limelightSeeking = true;
 		limelightPhase = 1;
-		limelightInputTimer = 20;
+		limelightInputTimer = 12;
 		limelightGuideMode = 0;
 		limelightInterTimer = CONTROL_CAM_INTERRUPTRECOVERYTIME;
 		limelightInterX = 0;limelightInterY = 0;limelightInterArea = 0;
@@ -1196,7 +1193,7 @@ public class Robot extends TimedRobot {
 	 * @param setpoint the desired setpoint
 	 */
 	public static void setLift(double setpoint) {
-		motorLift.set(ControlMode.PercentOutput, -proportionalLoop(.15,setpoint / 75,motorLift.getSelectedSensorPosition() / 75));
+		motorLift.set(ControlMode.PercentOutput, -proportionalLoop(.07,setpoint / 100,motorLift.getSelectedSensorPosition() / 100) * .85);
 	}
 	/**
 	 * Sets the foot to a given setpoint using a calibrated proportional loop control.
